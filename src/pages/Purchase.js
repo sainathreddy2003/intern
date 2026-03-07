@@ -919,8 +919,8 @@ const Purchase = () => {
   };
 
   const lookupCodeForRow = useCallback(
-    async (rowIndex) => {
-      const sourceCode = String(rows[rowIndex]?.code || '').trim();
+    async (rowIndex, explicitCode = '') => {
+      const sourceCode = String(explicitCode || rows[rowIndex]?.code || '').trim();
       if (!sourceCode) return;
 
       try {
@@ -940,21 +940,47 @@ const Purchase = () => {
         setRows((prev) => {
           const next = [...prev];
           const current = { ...next[rowIndex] };
-          current.code = current.code || item.item_code || item.barcode || sourceCode;
-          current.hsnCode = current.hsnCode || String(item.hsn_code || '').trim();
-          current.description = current.description || item.item_name || '';
-          current.sellingPrice = current.sellingPrice || toFixed2(item.sale_price ?? item.selling_price ?? 0);
-          current.grossProfitPercent =
-            current.grossProfitPercent || toCompact2(item.gross_profit_percent ?? item.grossProfitPercent ?? 0);
+          const qty = toNumber(current.qty);
+          const itemPieceMeter = normalizePieceMeterOption(
+            item.piece_meter ?? item.pieceMeter ?? item.unit_name ?? current.pieceMeter
+          );
+          const itemCostPerQty = toNumber(
+            item.cost_per_qty ?? item.costPerQty ?? item.purchase_price ?? item.net_cost ?? item.cost
+          );
+          const itemCost = toNumber(item.cost ?? (itemCostPerQty > 0 ? itemCostPerQty * qty : 0));
+          const itemDiscountPercent = toNumber(item.discount_percent ?? item.discountPercent);
+          const itemDiscountAmount = toNumber(item.discount_amount ?? item.discountAmount);
+          const itemTaxPercent = toNumber(item.tax_percentage ?? item.tax ?? item.taxPercent);
+          const itemTaxAmount = toNumber(item.tax_amount ?? item.taxAmount);
+          const itemNetCost = toNumber(item.net_cost ?? item.netCost);
+          const itemRoi = toNumber(item.roi_percent ?? item.roiPercent);
+          const itemGross = toNumber(item.gross_profit_percent ?? item.grossProfitPercent);
+          const itemSellingPrice = toNumber(item.selling_price ?? item.sale_price ?? item.sellingPrice);
+          const itemSellingPricePerPiece = toNumber(
+            item.selling_price_per_piece ?? item.sellingPricePerPiece
+          );
+          const itemNetAmount = toNumber(item.net_amount ?? item.netAmount);
 
-          const itemTax = toNumber(item.tax_percentage ?? item.tax ?? 0);
-          if (itemTax > 0) {
-            current.taxPercent = String(itemTax);
-          }
-
+          current.code = item.item_code || item.barcode || sourceCode;
+          current.hsnCode = String(item.hsn_code || '').trim();
+          current.description = item.item_name || current.description || '';
+          current.pieceMeter = itemPieceMeter;
+          current.costInputMode = 'costPerQty';
+          current.costPerQty = toCompact2(itemCostPerQty);
+          current.cost = toCompact2(itemCost);
+          current.discountPercent = toCompact2(itemDiscountPercent);
+          current.discountAmount = toCompact2(itemDiscountAmount);
+          current.taxPercent = toCompact2(itemTaxPercent);
+          current.taxAmount = toCompact2(itemTaxAmount);
+          current.netCost = toCompact2(itemNetCost);
+          current.roiPercent = toCompact2(itemRoi);
+          current.grossProfitPercent = toCompact2(itemGross);
+          current.sellingPrice = toCompact2(itemSellingPrice);
+          current.sellingPricePerPiece = toCompact2(itemSellingPricePerPiece);
+          current.netAmount = toCompact2(itemNetAmount);
           current.itemId = item.item_id || item.id || '';
-          current.barcode = item.barcode || '';
-          next[rowIndex] = recalculateRow(current, 'sellingPrice');
+          current.barcode = item.barcode || sourceCode;
+          next[rowIndex] = recalculateRow(current, 'costPerQty');
           return next;
         });
       } catch (error) {
@@ -1156,17 +1182,25 @@ const Purchase = () => {
 
   const handleGridKeyDown = (event, rowIndex, colIndex) => {
     const key = event.key;
-    const isNavigationKey = ['Enter', 'ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown'].includes(key);
+    const isNavigationKey = ['Enter', 'Tab', 'ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown'].includes(key);
     if (!isNavigationKey) return;
+
+    const activeColumn = visibleColumns[colIndex];
+    if (
+      activeColumn?.key === 'code' &&
+      ['Enter', 'Tab', 'ArrowRight', 'ArrowDown'].includes(key)
+    ) {
+      lookupCodeForRow(rowIndex, event.currentTarget?.value || '');
+    }
 
     event.preventDefault();
 
     let targetRow = rowIndex;
     let targetCol = colIndex;
 
-    if (key === 'Enter' || key === 'ArrowRight') {
+    if (key === 'Enter' || key === 'ArrowRight' || (key === 'Tab' && !event.shiftKey)) {
       targetCol += 1;
-    } else if (key === 'ArrowLeft') {
+    } else if (key === 'ArrowLeft' || (key === 'Tab' && event.shiftKey)) {
       targetCol -= 1;
     } else if (key === 'ArrowDown') {
       targetRow += 1;
@@ -1532,9 +1566,9 @@ const Purchase = () => {
                                 onChange={(event) => {
                                   updateRowCell(rowIndex, column.key, event.target.value, column.key);
                                 }}
-                                onBlur={() => {
+                                onBlur={(event) => {
                                   if (column.key === 'code') {
-                                    lookupCodeForRow(rowIndex);
+                                    lookupCodeForRow(rowIndex, event.target.value);
                                   }
                                 }}
                               />
