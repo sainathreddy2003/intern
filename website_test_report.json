@@ -1,0 +1,467 @@
+{
+  "summary": {
+    "totalTests": 48,
+    "passedTests": 23,
+    "failedTests": 3,
+    "warningTests": 15,
+    "skippedTests": 7,
+    "successRate": "47.92%",
+    "avgLoadTime": "3.67ms",
+    "avgResponseTime": "24.00ms",
+    "timestamp": "2026-03-02T11:22:20.188Z",
+    "testDuration": "Comprehensive website testing completed"
+  },
+  "testResults": [
+    {
+      "testName": "Main Page Connectivity",
+      "timestamp": "2026-03-02T11:22:20.095Z",
+      "status": "PASS",
+      "responseTime": "24ms",
+      "statusCode": 200,
+      "contentLength": 3058,
+      "details": "Main page loaded in 24ms with 3058 bytes"
+    },
+    {
+      "testName": "HTTPS Support",
+      "timestamp": "2026-03-02T11:22:20.135Z",
+      "status": "SKIP",
+      "details": "HTTPS not available or configured"
+    },
+    {
+      "testName": "Port 3000",
+      "timestamp": "2026-03-02T11:22:20.136Z",
+      "status": "PASS",
+      "statusCode": 200,
+      "details": "Port 3000 responding with status 200"
+    },
+    {
+      "testName": "Port 5002",
+      "timestamp": "2026-03-02T11:22:20.138Z",
+      "status": "PASS",
+      "statusCode": 404,
+      "details": "Port 5002 responding with status 404"
+    },
+    {
+      "testName": "Port 8080",
+      "timestamp": "2026-03-02T11:22:20.139Z",
+      "status": "FAIL",
+      "details": "Port 8080 not accessible"
+    },
+    {
+      "testName": "Page Load - Home",
+      "timestamp": "2026-03-02T11:22:20.150Z",
+      "status": "PASS",
+      "loadTime": "10ms",
+      "contentLength": 3058,
+      "hasMinifiedCSS": false,
+      "hasOptimizedImages": false,
+      "hasLazyLoading": false,
+      "details": "Home page loaded in 10ms with 3058 bytes"
+    },
+    {
+      "testName": "Page Load - Dashboard",
+      "timestamp": "2026-03-02T11:22:20.153Z",
+      "status": "PASS",
+      "loadTime": "3ms",
+      "contentLength": 148,
+      "hasMinifiedCSS": true,
+      "hasOptimizedImages": false,
+      "hasLazyLoading": false,
+      "details": "Dashboard page loaded in 3ms with 148 bytes"
+    },
+    {
+      "testName": "Page Load - Reports",
+      "timestamp": "2026-03-02T11:22:20.155Z",
+      "status": "PASS",
+      "loadTime": "2ms",
+      "contentLength": 146,
+      "hasMinifiedCSS": true,
+      "hasOptimizedImages": false,
+      "hasLazyLoading": false,
+      "details": "Reports page loaded in 2ms with 146 bytes"
+    },
+    {
+      "testName": "Page Load - Customers",
+      "timestamp": "2026-03-02T11:22:20.157Z",
+      "status": "PASS",
+      "loadTime": "2ms",
+      "contentLength": 148,
+      "hasMinifiedCSS": true,
+      "hasOptimizedImages": false,
+      "hasLazyLoading": false,
+      "details": "Customers page loaded in 2ms with 148 bytes"
+    },
+    {
+      "testName": "Page Load - Inventory",
+      "timestamp": "2026-03-02T11:22:20.159Z",
+      "status": "PASS",
+      "loadTime": "2ms",
+      "contentLength": 148,
+      "hasMinifiedCSS": true,
+      "hasOptimizedImages": false,
+      "hasLazyLoading": false,
+      "details": "Inventory page loaded in 2ms with 148 bytes"
+    },
+    {
+      "testName": "Page Load - Login",
+      "timestamp": "2026-03-02T11:22:20.162Z",
+      "status": "PASS",
+      "loadTime": "3ms",
+      "contentLength": 144,
+      "hasMinifiedCSS": true,
+      "hasOptimizedImages": false,
+      "hasLazyLoading": false,
+      "details": "Login page loaded in 3ms with 144 bytes"
+    },
+    {
+      "testName": "Performance Summary",
+      "timestamp": "2026-03-02T11:22:20.162Z",
+      "status": "PASS",
+      "avgLoadTime": "3.67ms",
+      "pagesTested": 6,
+      "details": "Average page load time: 3.67ms"
+    },
+    {
+      "testName": "Navigation Structure",
+      "timestamp": "2026-03-02T11:22:20.164Z",
+      "status": "FAIL",
+      "hasNav": false,
+      "hasMenu": false,
+      "hasLinks": true,
+      "hasDropdown": false,
+      "details": "Navigation: nav=false, menu=false, links=true, dropdown=false"
+    },
+    {
+      "testName": "Navigation Links",
+      "timestamp": "2026-03-02T11:22:20.168Z",
+      "status": "PASS",
+      "totalLinks": 6,
+      "internalLinks": 3,
+      "workingLinks": "3/3",
+      "details": "3 out of 3 internal links working"
+    },
+    {
+      "testName": "Breadcrumb Navigation",
+      "timestamp": "2026-03-02T11:22:20.168Z",
+      "status": "SKIP",
+      "hasBreadcrumbs": false,
+      "details": "Breadcrumb navigation not implemented"
+    },
+    {
+      "testName": "Content Structure",
+      "timestamp": "2026-03-02T11:22:20.169Z",
+      "status": "FAIL",
+      "hasTitle": true,
+      "hasMetaDescription": true,
+      "hasHeadings": false,
+      "hasContent": true,
+      "contentLength": 3058,
+      "details": "Content: title=true, meta=true, headings=false, length=3058"
+    },
+    {
+      "testName": "Content Quality",
+      "timestamp": "2026-03-02T11:22:20.169Z",
+      "status": "PASS",
+      "wordCount": 257,
+      "uniqueWords": 190,
+      "duplicateRatio": "26.07%",
+      "details": "Word count: 257, Unique: 190, Duplicate ratio: 26.07%"
+    },
+    {
+      "testName": "Media Content",
+      "timestamp": "2026-03-02T11:22:20.169Z",
+      "status": "SKIP",
+      "hasImages": false,
+      "hasVideos": false,
+      "hasAltText": false,
+      "details": "Media: images=false, videos=false, alt text=false"
+    },
+    {
+      "testName": "Form Functionality",
+      "timestamp": "2026-03-02T11:22:20.171Z",
+      "status": "SKIP",
+      "hasForms": true,
+      "hasInputs": false,
+      "hasButtons": false,
+      "hasValidation": false,
+      "details": "Forms: form=true, inputs=false, buttons=false, validation=false"
+    },
+    {
+      "testName": "Login Functionality",
+      "timestamp": "2026-03-02T11:22:20.172Z",
+      "status": "SKIP",
+      "hasLoginForm": false,
+      "details": "Login form not found"
+    },
+    {
+      "testName": "Dashboard Functionality",
+      "timestamp": "2026-03-02T11:22:20.173Z",
+      "status": "PASS",
+      "hasDashboard": true,
+      "hasCharts": false,
+      "hasMetrics": false,
+      "details": "Dashboard: available=true, charts=false, metrics=false"
+    },
+    {
+      "testName": "Search Functionality",
+      "timestamp": "2026-03-02T11:22:20.173Z",
+      "status": "SKIP",
+      "hasSearch": false,
+      "details": "Search functionality not implemented"
+    },
+    {
+      "testName": "CSS Framework",
+      "timestamp": "2026-03-02T11:22:20.175Z",
+      "status": "PASS",
+      "hasBootstrap": false,
+      "hasMaterialUI": false,
+      "hasTailwind": false,
+      "hasCustomCSS": true,
+      "details": "CSS: Bootstrap=false, Material-UI=false, Tailwind=false, Custom=true"
+    },
+    {
+      "testName": "JavaScript Framework",
+      "timestamp": "2026-03-02T11:22:20.175Z",
+      "status": "PASS",
+      "hasReact": true,
+      "hasVue": false,
+      "hasAngular": false,
+      "hasjQuery": false,
+      "details": "JS: React=true, Vue=false, Angular=false, jQuery=false"
+    },
+    {
+      "testName": "Responsive Design",
+      "timestamp": "2026-03-02T11:22:20.175Z",
+      "status": "PASS",
+      "hasViewportMeta": true,
+      "hasMediaQueries": false,
+      "hasResponsiveClasses": false,
+      "details": "Responsive: viewport=true, media=false, classes=false"
+    },
+    {
+      "testName": "Branding & Theme",
+      "timestamp": "2026-03-02T11:22:20.175Z",
+      "status": "PASS",
+      "hasFavicon": true,
+      "hasLogo": true,
+      "hasTheme": true,
+      "details": "Branding: favicon=true, logo=true, theme=true"
+    },
+    {
+      "testName": "Caching Headers",
+      "timestamp": "2026-03-02T11:22:20.176Z",
+      "status": "PASS",
+      "hasCacheControl": false,
+      "hasETag": true,
+      "hasExpires": false,
+      "details": "Caching: cache-control=false, etag=true, expires=false"
+    },
+    {
+      "testName": "Content Compression",
+      "timestamp": "2026-03-02T11:22:20.176Z",
+      "status": "WARN",
+      "hasGzip": false,
+      "hasDeflate": false,
+      "hasBrotli": false,
+      "details": "Compression: gzip=false, deflate=false, brotli=false"
+    },
+    {
+      "testName": "Resource Optimization",
+      "timestamp": "2026-03-02T11:22:20.176Z",
+      "status": "WARN",
+      "hasMinifiedJS": false,
+      "hasOptimizedCSS": false,
+      "hasLazyLoading": false,
+      "details": "Optimization: minified JS=false, optimized CSS=false, lazy loading=false"
+    },
+    {
+      "testName": "Page Size",
+      "timestamp": "2026-03-02T11:22:20.176Z",
+      "status": "PASS",
+      "pageSize": "2.99KB",
+      "isOptimizedSize": true,
+      "details": "Page size: 2.99KB (under 1MB: true)"
+    },
+    {
+      "testName": "Security Headers",
+      "timestamp": "2026-03-02T11:22:20.178Z",
+      "status": "WARN",
+      "hasXFrameOptions": false,
+      "hasXContentTypeOptions": false,
+      "hasXSSProtection": false,
+      "hasStrictTransportSecurity": false,
+      "hasContentSecurityPolicy": false,
+      "details": "Security headers: XFO=false, XCTO=false, XSS=false"
+    },
+    {
+      "testName": "Security Best Practices",
+      "timestamp": "2026-03-02T11:22:20.178Z",
+      "status": "PASS",
+      "hasConsoleLogs": false,
+      "hasDebugInfo": false,
+      "hasSensitiveData": true,
+      "hasErrorDetails": false,
+      "details": "Security: console=false, debug=false, sensitive=true"
+    },
+    {
+      "testName": "HTTPS Enforcement",
+      "timestamp": "2026-03-02T11:22:20.180Z",
+      "status": "WARN",
+      "details": "HTTPS not available"
+    },
+    {
+      "testName": "SEO Basics",
+      "timestamp": "2026-03-02T11:22:20.181Z",
+      "status": "WARN",
+      "hasTitle": true,
+      "hasMetaDescription": true,
+      "hasMetaKeywords": false,
+      "hasH1": false,
+      "hasStructuredData": false,
+      "details": "SEO: title=true, meta desc=true, keywords=false, H1=false"
+    },
+    {
+      "testName": "Title Optimization",
+      "timestamp": "2026-03-02T11:22:20.181Z",
+      "status": "PASS",
+      "titleLength": 49,
+      "isOptimalTitleLength": true,
+      "details": "Title length: 49 characters (optimal: 30-60)"
+    },
+    {
+      "testName": "Meta Description",
+      "timestamp": "2026-03-02T11:22:20.181Z",
+      "status": "WARN",
+      "descLength": 48,
+      "isOptimalDescLength": false,
+      "details": "Meta description length: 48 characters (optimal: 120-160)"
+    },
+    {
+      "testName": "Heading Structure",
+      "timestamp": "2026-03-02T11:22:20.181Z",
+      "status": "WARN",
+      "h1Count": 0,
+      "h2Count": 0,
+      "hasProperHeadingStructure": false,
+      "details": "Headings: H1=0, H2=0 (optimal: 1 H1, multiple H2)"
+    },
+    {
+      "testName": "Accessibility Basics",
+      "timestamp": "2026-03-02T11:22:20.182Z",
+      "status": "WARN",
+      "hasLangAttribute": true,
+      "hasAltText": false,
+      "hasAriaLabels": false,
+      "hasSemanticHTML": false,
+      "details": "Accessibility: lang=true, alt=false, aria=false, semantic=false"
+    },
+    {
+      "testName": "Color Contrast",
+      "timestamp": "2026-03-02T11:22:20.182Z",
+      "status": "SKIP",
+      "hasInlineStyles": true,
+      "hasCSSColors": true,
+      "details": "Color contrast testing requires visual analysis - automated check skipped"
+    },
+    {
+      "testName": "Keyboard Navigation",
+      "timestamp": "2026-03-02T11:22:20.182Z",
+      "status": "WARN",
+      "hasTabIndex": false,
+      "hasFocusStyles": false,
+      "details": "Keyboard navigation: tabindex=false, focus=false"
+    },
+    {
+      "testName": "Form Accessibility",
+      "timestamp": "2026-03-02T11:22:20.182Z",
+      "status": "WARN",
+      "hasFormLabels": false,
+      "hasRequiredFields": false,
+      "details": "Form accessibility: labels=false, required=false"
+    },
+    {
+      "testName": "Mobile Viewport",
+      "timestamp": "2026-03-02T11:22:20.183Z",
+      "status": "PASS",
+      "hasViewportMeta": true,
+      "hasMobileOptimized": false,
+      "hasTouchOptimized": true,
+      "details": "Mobile: viewport=true, optimized=false, touch=true"
+    },
+    {
+      "testName": "Mobile Images",
+      "timestamp": "2026-03-02T11:22:20.183Z",
+      "status": "WARN",
+      "hasResponsiveImages": false,
+      "hasOptimizedImages": false,
+      "details": "Mobile images: responsive=false, optimized=false"
+    },
+    {
+      "testName": "Mobile Navigation",
+      "timestamp": "2026-03-02T11:22:20.183Z",
+      "status": "WARN",
+      "hasMobileNav": false,
+      "hasSwipeGestures": false,
+      "details": "Mobile navigation: hamburger=false, gestures=false"
+    },
+    {
+      "testName": "Mobile Performance",
+      "timestamp": "2026-03-02T11:22:20.184Z",
+      "status": "WARN",
+      "hasMinifiedMobileCSS": false,
+      "hasLazyLoading": false,
+      "details": "Mobile performance: minified=false, lazy=false"
+    },
+    {
+      "testName": "404 Error Page",
+      "timestamp": "2026-03-02T11:22:20.186Z",
+      "status": "WARN",
+      "hasCustom404": false,
+      "statusCode": 404,
+      "details": "404 page: custom=false, status=404"
+    },
+    {
+      "testName": "500 Error Handling",
+      "timestamp": "2026-03-02T11:22:20.187Z",
+      "status": "PASS",
+      "hasCustomError": true,
+      "statusCode": 404,
+      "details": "500 error handling: custom=true, status=404"
+    },
+    {
+      "testName": "Error Message Quality",
+      "timestamp": "2026-03-02T11:22:20.187Z",
+      "status": "WARN",
+      "hasErrorHandling": false,
+      "hasUserFriendlyMessages": false,
+      "details": "Error handling: present=false, user-friendly=false"
+    }
+  ],
+  "performanceMetrics": {
+    "loadTimes": [
+      10,
+      3,
+      2,
+      2,
+      2,
+      3
+    ],
+    "responseTimes": [
+      24
+    ],
+    "errorCounts": 0
+  },
+  "recommendations": [
+    {
+      "priority": "HIGH",
+      "action": "Fix Failed Tests",
+      "details": "3 critical issues need immediate attention"
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Address Warnings",
+      "details": "15 warnings should be addressed for better performance"
+    }
+  ],
+  "websiteScore": 47
+}

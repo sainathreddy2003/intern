@@ -1,0 +1,8 @@
+services:
+  - type: web
+    name: retail-erp-fullstack
+    env: node
+    plan: free
+    buildCommand: npm install && npm --prefix server install && npm run build
+    startCommand: node server/src/server.js
+    autoDeploy: true

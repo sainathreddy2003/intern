@@ -1,0 +1,246 @@
+{
+  "summary": {
+    "totalTests": 27,
+    "passedTests": 20,
+    "failedTests": 6,
+    "skippedTests": 0,
+    "warningTests": 1,
+    "successRate": "74.07%",
+    "avgResponseTime": "4.75ms",
+    "timestamp": "2026-03-02T11:22:20.175Z",
+    "testDuration": "Comprehensive testing completed"
+  },
+  "testResults": [
+    {
+      "testName": "Frontend Server",
+      "timestamp": "2026-03-02T11:22:20.094Z",
+      "status": "PASS",
+      "responseTime": "23ms",
+      "statusCode": 200,
+      "details": "Frontend server responded in 23ms"
+    },
+    {
+      "testName": "Backend Server",
+      "timestamp": "2026-03-02T11:22:20.099Z",
+      "status": "FAIL",
+      "responseTime": "4ms",
+      "statusCode": 404,
+      "details": "Backend server responded in 4ms"
+    },
+    {
+      "testName": "Database Connectivity",
+      "timestamp": "2026-03-02T11:22:20.100Z",
+      "status": "FAIL",
+      "responseTime": "1ms",
+      "details": "Database connection verified in 1ms"
+    },
+    {
+      "testName": "Application Load",
+      "timestamp": "2026-03-02T11:22:20.102Z",
+      "status": "PASS",
+      "loadTime": "1ms",
+      "hasReact": true,
+      "hasMaterialUI": false,
+      "hasChartJS": false,
+      "hasLogin": false,
+      "hasDashboard": false,
+      "details": "Application loaded in 1ms with React: true, Material-UI: false, Chart.js: false"
+    },
+    {
+      "testName": "Mobile Viewport",
+      "timestamp": "2026-03-02T11:22:20.102Z",
+      "status": "PASS",
+      "hasViewportMeta": true,
+      "details": "Mobile viewport meta tag found"
+    },
+    {
+      "testName": "Responsive CSS",
+      "timestamp": "2026-03-02T11:22:20.102Z",
+      "status": "FAIL",
+      "hasResponsiveCSS": false,
+      "details": "Responsive CSS missing"
+    },
+    {
+      "testName": "API - /api/auth/login",
+      "timestamp": "2026-03-02T11:22:20.104Z",
+      "status": "PASS",
+      "responseTime": "2ms",
+      "statusCode": 404,
+      "details": "Endpoint /api/auth/login responded in 2ms with status 404"
+    },
+    {
+      "testName": "API - /api/sales",
+      "timestamp": "2026-03-02T11:22:20.118Z",
+      "status": "PASS",
+      "responseTime": "14ms",
+      "statusCode": 200,
+      "details": "Endpoint /api/sales responded in 14ms with status 200"
+    },
+    {
+      "testName": "API - /api/customers",
+      "timestamp": "2026-03-02T11:22:20.122Z",
+      "status": "PASS",
+      "responseTime": "4ms",
+      "statusCode": 200,
+      "details": "Endpoint /api/customers responded in 4ms with status 200"
+    },
+    {
+      "testName": "API - /api/inventory",
+      "timestamp": "2026-03-02T11:22:20.123Z",
+      "status": "PASS",
+      "responseTime": "1ms",
+      "statusCode": 404,
+      "details": "Endpoint /api/inventory responded in 1ms with status 404"
+    },
+    {
+      "testName": "API - /api/reports",
+      "timestamp": "2026-03-02T11:22:20.125Z",
+      "status": "PASS",
+      "responseTime": "2ms",
+      "statusCode": 401,
+      "details": "Endpoint /api/reports responded in 2ms with status 401"
+    },
+    {
+      "testName": "Chart Functionality",
+      "timestamp": "2026-03-02T11:22:20.131Z",
+      "status": "FAIL",
+      "hasChartJS": false,
+      "hasCanvas": false,
+      "canvasCount": 0,
+      "chartCount": 0,
+      "hasStockMarketStyle": false,
+      "details": "Found 0 canvas elements, 0 chart references, stock market style: false"
+    },
+    {
+      "testName": "Chart Data Availability",
+      "timestamp": "2026-03-02T11:22:20.133Z",
+      "status": "FAIL",
+      "statusCode": 401,
+      "details": "Chart data API unavailable"
+    },
+    {
+      "testName": "Mobile Responsiveness",
+      "timestamp": "2026-03-02T11:22:20.134Z",
+      "status": "PASS",
+      "hasViewportMeta": true,
+      "hasTouchOptimized": true,
+      "hasMobileNav": false,
+      "hasResponsiveImages": false,
+      "hasMediaQueries": false,
+      "hasMobileClasses": false,
+      "details": "Mobile optimization: viewport=true, touch=true, nav=false"
+    },
+    {
+      "testName": "Mobile Features",
+      "timestamp": "2026-03-02T11:22:20.134Z",
+      "status": "PASS",
+      "hasGestures": true,
+      "hasMobileButtons": false,
+      "details": "Mobile features: gestures=true, buttons=false"
+    },
+    {
+      "testName": "Performance - localhost:3000",
+      "timestamp": "2026-03-02T11:22:20.136Z",
+      "status": "PASS",
+      "loadTime": "2ms",
+      "details": "Page http://localhost:3000 loaded in 2ms"
+    },
+    {
+      "testName": "Performance - dashboard",
+      "timestamp": "2026-03-02T11:22:20.152Z",
+      "status": "PASS",
+      "loadTime": "16ms",
+      "details": "Page http://localhost:3000/dashboard loaded in 16ms"
+    },
+    {
+      "testName": "Performance - reports",
+      "timestamp": "2026-03-02T11:22:20.154Z",
+      "status": "PASS",
+      "loadTime": "2ms",
+      "details": "Page http://localhost:3000/reports loaded in 2ms"
+    },
+    {
+      "testName": "Performance - customers",
+      "timestamp": "2026-03-02T11:22:20.155Z",
+      "status": "PASS",
+      "loadTime": "1ms",
+      "details": "Page http://localhost:3000/customers loaded in 1ms"
+    },
+    {
+      "testName": "Performance Summary",
+      "timestamp": "2026-03-02T11:22:20.155Z",
+      "status": "PASS",
+      "avgLoadTime": "5.25ms",
+      "pagesTested": "4/4",
+      "details": "Average load time: 5.25ms"
+    },
+    {
+      "testName": "Export - sales",
+      "timestamp": "2026-03-02T11:22:20.157Z",
+      "status": "PASS",
+      "responseTime": "1ms",
+      "statusCode": 404,
+      "details": "Export endpoint /api/export/sales responded in 1ms"
+    },
+    {
+      "testName": "Export - customers",
+      "timestamp": "2026-03-02T11:22:20.158Z",
+      "status": "PASS",
+      "responseTime": "1ms",
+      "statusCode": 404,
+      "details": "Export endpoint /api/export/customers responded in 1ms"
+    },
+    {
+      "testName": "Export - reports",
+      "timestamp": "2026-03-02T11:22:20.159Z",
+      "status": "PASS",
+      "responseTime": "1ms",
+      "statusCode": 404,
+      "details": "Export endpoint /api/export/reports responded in 1ms"
+    },
+    {
+      "testName": "Frontend Export",
+      "timestamp": "2026-03-02T11:22:20.161Z",
+      "status": "FAIL",
+      "hasExportButtons": false,
+      "hasExportFunctionality": false,
+      "details": "Export functionality: buttons=false, functions=false"
+    },
+    {
+      "testName": "Security Headers",
+      "timestamp": "2026-03-02T11:22:20.163Z",
+      "status": "WARN",
+      "hasSecurityHeaders": false,
+      "details": "Security headers missing"
+    },
+    {
+      "testName": "Authentication Endpoint",
+      "timestamp": "2026-03-02T11:22:20.173Z",
+      "status": "PASS",
+      "statusCode": 400,
+      "details": "Auth endpoint available with status 400"
+    },
+    {
+      "testName": "Security Best Practices",
+      "timestamp": "2026-03-02T11:22:20.174Z",
+      "status": "PASS",
+      "hasConsoleLogs": false,
+      "hasDebugInfo": false,
+      "hasSensitiveData": true,
+      "details": "Security: console=false, debug=false, sensitive=true"
+    }
+  ],
+  "recommendations": [
+    {
+      "priority": "HIGH",
+      "action": "Fix Failed Tests",
+      "details": "6 tests failed, immediate attention required"
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Address Warnings",
+      "details": "1 warnings need attention"
+    }
+  ],
+  "functionalityScore": 63
+}
