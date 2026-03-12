@@ -93,32 +93,31 @@ export const AuthProvider = ({ children }) => {
         const userStr = localStorage.getItem('user');
 
         if (token && userStr) {
-          const user = JSON.parse(userStr);
-          
-          // Store in offline DB for offline access
-          await offlineDB.auth.put({ id: 'current', token, user });
-          
-          dispatch({
-            type: AUTH_ACTIONS.LOGIN_SUCCESS,
-            payload: { user, token },
-          });
-        } else {
-          // Try to get from offline DB
-          const offlineAuth = await offlineDB.auth.get('current');
-          if (offlineAuth) {
-            localStorage.setItem('token', offlineAuth.token);
-            localStorage.setItem('user', JSON.stringify(offlineAuth.user));
-            
+          // Always validate cached token with backend before auto-login.
+          try {
+            const meResponse = await authAPI.getMe();
+            const user = meResponse?.data || JSON.parse(userStr);
+            await offlineDB.auth.put({ id: 'current', token, user });
+            localStorage.setItem('user', JSON.stringify(user));
             dispatch({
               type: AUTH_ACTIONS.LOGIN_SUCCESS,
-              payload: { user: offlineAuth.user, token: offlineAuth.token },
+              payload: { user, token },
             });
-          } else {
+          } catch (error) {
+            // Invalid/expired token: force fresh login.
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            await offlineDB.auth.delete('current').catch(() => { });
             dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
           }
+        } else {
+          dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        await offlineDB.auth.delete('current').catch(() => { });
         dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
       }
     };
