@@ -70,10 +70,11 @@ const ensureDefaultClientSetup = async () => {
   const defaultDbName = getDefaultTenantDb();
   const legacyDbName =
     process.env.LEGACY_DATA_DB || extractDbNameFromMongoUri(process.env.MONGODB_URI);
-  const defaultDomainUser = (process.env.DEFAULT_DEMO_USER || 'ramesh@demo').toLowerCase();
-  const defaultPassword = process.env.DEFAULT_DEMO_PASSWORD || 'Ramesh123';
+  const defaultDomainUser = (process.env.DEFAULT_DEMO_USER || 'rameshdemo').toLowerCase();
+  const defaultPassword = process.env.DEFAULT_DEMO_PASSWORD || 'ramesh123';
   const legacyAdminUser = (process.env.DEFAULT_LEGACY_ADMIN_USER || 'admin').toLowerCase();
   const legacyAdminPassword = process.env.DEFAULT_LEGACY_ADMIN_PASSWORD || 'admin123';
+  const legacyAdminDbName = process.env.DEFAULT_LEGACY_ADMIN_DB || 'erp_admin_demo';
 
   if (process.env.CLEAN_DEMO_DATA_ON_BOOT === 'true') {
     await clearCoreCollections(defaultDbName);
@@ -148,6 +149,9 @@ const ensureDefaultClientSetup = async () => {
       );
     }
 
+  });
+
+  await runWithTenant(legacyAdminDbName, async () => {
     const legacyAdmin = await User.findOne({ email: legacyAdminUser });
     if (!legacyAdmin) {
       await User.create({
@@ -158,7 +162,7 @@ const ensureDefaultClientSetup = async () => {
         role: 'admin',
       });
       console.log(
-        `Legacy default admin created: username=${legacyAdminUser} password=${legacyAdminPassword}`
+        `Legacy admin created in ${legacyAdminDbName}: username=${legacyAdminUser} password=${legacyAdminPassword}`
       );
     }
   });

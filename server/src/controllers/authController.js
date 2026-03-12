@@ -65,9 +65,10 @@ const login = async (req, res, next) => {
     }
 
     const loginId = normalizeLogin(email);
-    const defaultDomainUser = (process.env.DEFAULT_DEMO_USER || 'ramesh@demo').toLowerCase();
-    const defaultPassword = process.env.DEFAULT_DEMO_PASSWORD || 'Ramesh123';
+    const defaultDomainUser = (process.env.DEFAULT_DEMO_USER || 'rameshdemo').toLowerCase();
+    const defaultPassword = process.env.DEFAULT_DEMO_PASSWORD || 'ramesh123';
     const defaultDbName = getDefaultTenantDb();
+    const legacyAdminDbName = process.env.DEFAULT_LEGACY_ADMIN_DB || 'erp_admin_demo';
     const loginAliases = [loginId];
     if (!loginId.includes('@')) loginAliases.push(`${loginId}@demo`);
     const isDefaultDemoLogin =
@@ -109,7 +110,7 @@ const login = async (req, res, next) => {
       const legacyAdminUser = (process.env.DEFAULT_LEGACY_ADMIN_USER || 'admin').toLowerCase();
       const legacyAdminPassword = process.env.DEFAULT_LEGACY_ADMIN_PASSWORD || 'admin123';
       if (loginId === legacyAdminUser && password === legacyAdminPassword) {
-        const legacyUser = await runWithTenant(defaultDbName, async () => {
+        const legacyUser = await runWithTenant(legacyAdminDbName, async () => {
           let tenantUser = await User.findOne({ email: legacyAdminUser });
           if (!tenantUser) {
             tenantUser = await User.create({
@@ -132,7 +133,7 @@ const login = async (req, res, next) => {
 
         const token = generateToken({
           id: legacyUser._id,
-          dbName: defaultDbName,
+          dbName: legacyAdminDbName,
           domainUser: legacyAdminUser,
         });
 
@@ -145,7 +146,7 @@ const login = async (req, res, next) => {
               email: legacyUser.email,
               role: legacyUser.role,
               client_name: process.env.DEFAULT_DEMO_CLIENT_NAME || 'Ramesh Exports',
-              dbName: defaultDbName,
+              dbName: legacyAdminDbName,
             },
             token,
           },
