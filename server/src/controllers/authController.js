@@ -3,34 +3,8 @@ const User = require('../models/User');
 const MasterClient = require('../models/MasterClient');
 const { runWithTenant, getDefaultTenantDb } = require('../context/tenantContext');
 const { cloneTemplateSchema } = require('../services/tenantProvisioningService');
-const { getTenantConnection } = require('../config/db');
 
 const normalizeLogin = (value = '') => value.trim().toLowerCase();
-
-const clearTenantBusinessData = async (dbName) => {
-  const conn = await getTenantConnection(dbName);
-  const collections = [
-    'items',
-    'customers',
-    'suppliers',
-    'sales',
-    'purchases',
-    'expenses',
-    'warehouses',
-    'returns',
-    'employees',
-    'payrolls',
-    'cashflows',
-    'budgets',
-    'budgetperiods',
-  ];
-
-  for (const name of collections) {
-    const exists = await conn.db.listCollections({ name }).toArray();
-    if (!exists.length) continue;
-    await conn.db.collection(name).deleteMany({});
-  }
-};
 
 const generateToken = ({ id, dbName, clientId, domainUser }) => {
   const secret = process.env.JWT_SECRET || 'change-me-in-env';
@@ -135,8 +109,6 @@ const login = async (req, res, next) => {
       const legacyAdminUser = (process.env.DEFAULT_LEGACY_ADMIN_USER || 'admin').toLowerCase();
       const legacyAdminPassword = process.env.DEFAULT_LEGACY_ADMIN_PASSWORD || 'admin123';
       if (loginId === legacyAdminUser && password === legacyAdminPassword) {
-        // Special requirement: admin/admin123 login should start with a clean dataset.
-        await clearTenantBusinessData(defaultDbName);
         const legacyUser = await runWithTenant(defaultDbName, async () => {
           let tenantUser = await User.findOne({ email: legacyAdminUser });
           if (!tenantUser) {
