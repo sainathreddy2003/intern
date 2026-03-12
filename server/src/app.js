@@ -40,7 +40,14 @@ app.use(
     }
   })
 );
-app.use(express.json({ limit: '5mb' }));
+app.use(
+  express.json({
+    limit: '5mb',
+    verify: (req, res, buf) => {
+      req.rawBody = buf;
+    }
+  })
+);
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 app.use('/api', attachTenantContext);

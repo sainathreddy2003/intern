@@ -29,7 +29,7 @@ import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 
 // Services
-import { salesAPI, inventoryAPI } from '../services/api';
+import { salesAPI, inventoryAPI, warehouseAPI } from '../services/api';
 import { offlineDB } from '../services/offlineDB';
 import { useOffline } from '../contexts/OfflineContext_simple';
 
@@ -70,13 +70,25 @@ const Dashboard = () => {
   );
 
   const { data: recentBills, isLoading: billsLoading } = useQuery(
-    'recentBills',
+    'todayBills',
     () => isOnline 
-      ? salesAPI.getBills({ limit: 5 })
+      ? salesAPI.getBills({
+          limit: 50,
+          dateFrom: format(new Date(), 'yyyy-MM-dd'),
+          dateTo: format(new Date(), 'yyyy-MM-dd'),
+        })
       : offlineDB.salesHdr.reverse().limit(5),
     {
       enabled: true,
       staleTime: 2 * 60 * 1000,
+    }
+  );
+  const { data: warehousesData, isLoading: warehousesLoading } = useQuery(
+    'warehousesDashboard',
+    () => isOnline ? warehouseAPI.getWarehouses({ limit: 5 }) : [],
+    {
+      enabled: true,
+      staleTime: 10 * 60 * 1000,
     }
   );
 
@@ -103,6 +115,17 @@ const Dashboard = () => {
       : Array.isArray(recentBills)
         ? recentBills
         : [];
+  const warehousesList = Array.isArray(warehousesData?.data)
+    ? warehousesData.data
+    : Array.isArray(warehousesData?.data?.items)
+      ? warehousesData.data.items
+      : Array.isArray(warehousesData)
+        ? warehousesData
+        : [];
+  const totalWarehouseLowStock = warehousesList.reduce(
+    (sum, wh) => sum + Number(wh.low_stock_count ?? wh.lowStockCount ?? 0),
+    0
+  );
 
   const statCards = [
     {
@@ -161,7 +184,7 @@ const Dashboard = () => {
       {/* Stats Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {statCards.map((stat, index) => (
-          <Grid item xs={12} sm={6} md={3} key={index}>
+          <Grid item xs={12} sm={6} md={3}>
             <Card sx={{ bgcolor: '#ffffff', border: '2px solid #ff9800' }}>
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -192,12 +215,12 @@ const Dashboard = () => {
       </Grid>
 
       <Grid container spacing={3}>
-        {/* Recent Bills */}
+        {/* Today Bills */}
         <Grid item xs={12} md={8}>
           <Paper sx={{ p: 2, bgcolor: '#ffffff', border: '2px solid #ff9800' }}>
             <Typography variant="h6" gutterBottom sx={{ color: '#000000', fontWeight: 'bold' }}>
               <ShoppingCart sx={{ mr: 1, verticalAlign: 'middle', color: '#ff9800' }} />
-              Recent Bills
+              Today Bills
             </Typography>
             
             {billsLoading ? (
@@ -210,6 +233,7 @@ const Dashboard = () => {
                 <Typography sx={{ color: '#000000' }}>No bills today</Typography>
               </Box>
             ) : (
+              <Box sx={{ maxHeight: 360, overflowY: 'auto', pr: 1 }}>
               <List>
                 {recentBillsList.map((bill) => (
                   <ListItem key={bill.id || bill.bill_no || bill.invoiceNo}>
@@ -234,6 +258,7 @@ const Dashboard = () => {
                   </ListItem>
                 ))}
               </List>
+              </Box>
             )}
           </Paper>
         </Grid>
@@ -281,6 +306,75 @@ const Dashboard = () => {
                   </ListItem>
                 )}
               </List>
+            )}
+          </Paper>
+        </Grid>
+
+        {/* Warehouse Low Stock */}
+        <Grid item xs={12}>
+          <Paper sx={{ p: 2, bgcolor: '#ffffff', border: '2px solid #ff9800' }}>
+            <Typography variant="h6" gutterBottom sx={{ color: '#000000', fontWeight: 'bold' }}>
+              <Business sx={{ mr: 1, verticalAlign: 'middle', color: '#ff9800' }} />
+              Warehouse Low Stock
+            </Typography>
+            {warehousesLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                <CircularProgress sx={{ color: '#ff9800' }} />
+              </Box>
+            ) : warehousesList.length === 0 ? (
+              <Typography sx={{ color: '#000000' }}>No warehouses found</Typography>
+            ) : (
+              <>
+                <Typography variant="body2" sx={{ color: '#000000', mb: 1, fontWeight: 'bold' }}>
+                  Total Warehouse Low Stock: {totalWarehouseLowStock}
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="subtitle2" sx={{ color: '#000000', mb: 1, fontWeight: 'bold' }}>
+                      Warehouses
+                    </Typography>
+                    <List dense>
+                      {warehousesList.slice(0, 5).map((wh) => (
+                        <ListItem key={wh.id || wh._id || wh.code}>
+                          <ListItemIcon>
+                            <Business sx={{ color: '#ff9800' }} />
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={`${wh.name || 'Warehouse'} (${wh.code || '-'})`}
+                            secondary={`Location: ${wh.location || 'N/A'} | Low Stock: ${Number(wh.low_stock_count ?? wh.lowStockCount ?? 0)}`}
+                            primaryTypographyProps={{ color: '#000000', fontWeight: 'bold' }}
+                            secondaryTypographyProps={{ color: '#000000' }}
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="subtitle2" sx={{ color: '#000000', mb: 1, fontWeight: 'bold' }}>
+                      Low Stock Items
+                    </Typography>
+                    {lowStock.length === 0 ? (
+                      <Typography sx={{ color: '#000000' }}>No low stock items</Typography>
+                    ) : (
+                      <List dense>
+                        {lowStock.slice(0, 8).map((item) => (
+                          <ListItem key={item.item_id || item.id || item.item_code}>
+                            <ListItemIcon>
+                              <Inventory sx={{ color: '#ff6f00' }} />
+                            </ListItemIcon>
+                            <ListItemText
+                              primary={item.item_name || item.item_code || 'Item'}
+                              secondary={`Current: ${item.currentStock ?? item.stock ?? 0} | Min: ${item.min_stock_level ?? 0}`}
+                              primaryTypographyProps={{ color: '#000000', fontWeight: 'bold' }}
+                              secondaryTypographyProps={{ color: '#000000' }}
+                            />
+                          </ListItem>
+                        ))}
+                      </List>
+                    )}
+                  </Grid>
+                </Grid>
+              </>
             )}
           </Paper>
         </Grid>

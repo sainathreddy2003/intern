@@ -1,6 +1,30 @@
 const Sale = require('../models/Sale');
 const { getPagination } = require('../utils/pagination');
 
+const ALLOWED_SALE_SOURCES = ['DOMESTIC', 'OTHERS', 'WEBSITE', 'AMAZON', 'FLIPKART', 'MEESHO'];
+
+const normalizeSaleSource = (payload = {}, strict = false) => {
+  const raw = String(payload.source || '').trim().toUpperCase();
+  if (!raw) {
+    payload.source = 'DOMESTIC';
+    return;
+  }
+
+  if (raw === 'MANUAL') {
+    payload.source = 'DOMESTIC';
+    return;
+  }
+
+  if (!ALLOWED_SALE_SOURCES.includes(raw)) {
+    if (strict) {
+      throw new Error(`Invalid sale source. Allowed values: ${ALLOWED_SALE_SOURCES.join(', ')}`);
+    }
+    payload.source = 'DOMESTIC';
+    return;
+  }
+  payload.source = raw;
+};
+
 const normalizeSalePayment = (payload = {}) => {
   const net = Math.abs(Number(payload.netAmount || 0));
   const mode = String(payload.paymentMode || 'CASH').toUpperCase();
@@ -67,6 +91,8 @@ const createSale = async (req, res, next) => {
       throw new Error('invoiceNo is required');
     }
 
+    normalizeSaleSource(payload, true);
+    payload.remarks = String(payload.remarks || '').trim();
     normalizeSalePayment(payload);
     const created = await Sale.create(payload);
     res.status(201).json({ success: true, data: created });
@@ -88,6 +114,10 @@ const updateSale = async (req, res, next) => {
     if (payload.invoiceNo || payload.bill_no) {
       payload.invoiceNo = payload.invoiceNo || payload.bill_no;
       payload.bill_no = payload.bill_no || payload.invoiceNo;
+    }
+    normalizeSaleSource(payload, true);
+    if (Object.prototype.hasOwnProperty.call(payload, 'remarks')) {
+      payload.remarks = String(payload.remarks || '').trim();
     }
     normalizeSalePayment(payload);
 

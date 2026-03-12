@@ -425,6 +425,8 @@ export const generateInvoicePDF = (bill, settings = {}, mode = 'download') => {
   if (mode === 'print') {
     doc.autoPrint();
     window.open(doc.output('bloburl'), '_blank');
+  } else if (mode === 'view') {
+    window.open(doc.output('bloburl'), '_blank');
   } else {
     doc.save(fileName);
   }

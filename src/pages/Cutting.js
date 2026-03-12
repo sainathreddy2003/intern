@@ -31,7 +31,7 @@ import Search from '@mui/icons-material/Search';
 import { toast } from 'react-hot-toast';
 import { inventoryAPI, itemsAPI } from '../services/api';
 
-const SUBDIVISION_PRESETS = [1, 3, 5, 10];
+const SUBDIVISION_PRESETS = [1, 2, 5, 10];
 
 const createDefaultSubdivisions = (sendingMeters) => {
   return SUBDIVISION_PRESETS.map((preset) => ({
@@ -57,6 +57,11 @@ const toNumber = (value) => {
 };
 
 const toFixed2 = (value) => Number(toNumber(value).toFixed(2));
+const resolveUnitLabelByType = (item = {}) => {
+  const safeItem = item || {};
+  const itemType = String(safeItem.item_type || safeItem.itemType || '').toUpperCase();
+  return itemType === 'PRODUCT' ? 'Pieces' : 'Meters';
+};
 
 const resolveItemStock = (item = {}) => {
   if (!item || typeof item !== 'object') return 0;
@@ -117,6 +122,7 @@ const Cutting = () => {
   };
 
   const totalAvailableMeters = useMemo(() => toFixed2(resolveItemStock(selectedItem)), [selectedItem]);
+  const unitLabel = useMemo(() => resolveUnitLabelByType(selectedItem), [selectedItem]);
 
   const sendingMeters = useMemo(() => toFixed2(entry.sendingMeters), [entry.sendingMeters]);
 
@@ -307,12 +313,14 @@ const Cutting = () => {
       itemName: selectedItem.item_name || '',
       itemBarcode: selectedItem.barcode || '',
       itemCode: selectedItem.item_code || '',
+      itemType: String(selectedItem.item_type || 'FABRIC').toUpperCase(),
       totalAvailableMeters,
       sendingMeters: sending,
       sentTo: String(entry.sentTo || '').trim(),
       subdivisionCount,
       rows: createSubdivisionRows(entry.subdivisions),
       currentSellingPrice: sourceSellingPrice,
+      baseCuttingRate: sourceSellingPrice,
       currentRoiPercent: sourceRoiPercent,
       usedTotal: sendingSummary.totalMeters,
       status: 'PENDING',
@@ -345,17 +353,16 @@ const Cutting = () => {
     const filteredRows = jobRows.filter(row => toNumber(row.units) > 0);
     
     // Calculate cost per piece based on sending meters and subdivision
-    const sendingMeters = toFixed2(job?.sendingMeters ?? 0);
-    const totalUnits = filteredRows.reduce((sum, row) => sum + toNumber(row.units), 0);
+    const baseCuttingRate = toFixed2(job?.baseCuttingRate ?? job?.currentSellingPrice ?? 0);
     
     setReceiveRows(
       filteredRows.map((row) => {
         const units = toFixed2(row.units);
-        const meterValue = row.id; // subdivision meter value (1, 3, 5, 10)
+        const meterValue = row.id; // subdivision meter value (1, 2, 5, 10)
         const totalMetersForRow = toFixed2(row.totalMeters);
         
-        // Calculate cost per piece: (sendingMeters / totalUnits) OR use existing if already set
-        const calculatedCostPerPiece = units > 0 ? toFixed2(sendingMeters / totalUnits) : 0;
+        // Cost per piece is mapped from selected item's cutting rate * subdivision length.
+        const calculatedCostPerPiece = toFixed2(meterValue * baseCuttingRate);
         const costPerPiece = toFixed2(row.costPerPiece ?? calculatedCostPerPiece);
         const serviceCharge = toFixed2(row.serviceCharge ?? 0);
         const netAmountPerPiece = toFixed2(costPerPiece + serviceCharge);
@@ -439,6 +446,38 @@ const Cutting = () => {
 
       if (existingItem?.item_id) {
         try {
+          const latestNetCost = toFixed2(row.netAmountPerPiece);
+          const latestSelling = toFixed2(row.sellingPrice);
+          const latestRoi = toFixed2(row.roiPercent);
+          const latestCostPerPiece = toFixed2(row.costPerPiece);
+          const latestGross =
+            latestSelling > 0
+              ? toFixed2(((latestSelling - latestNetCost) / latestSelling) * 100)
+              : 0;
+
+          // Persist latest pricing edits from receive dialog into Items master.
+          await itemsAPI.updateItem(existingItem.item_id, {
+            ...existingItem,
+            item_name: existingItem.item_name || `${selectedJob.itemName} (${row.subdivision})`,
+            item_code: existingItem.item_code || newItemCode,
+            barcode: existingItem.barcode || newBarcode,
+            unit_name:
+              existingItem.unit_name ||
+              (selectedJob.itemType === 'PRODUCT' ? 'Piece' : 'Meter'),
+            unit:
+              existingItem.unit ||
+              (selectedJob.itemType === 'PRODUCT' ? 'PCS' : 'MTR'),
+            item_type: existingItem.item_type || selectedJob.itemType || 'FABRIC',
+            purchase_price: latestCostPerPiece,
+            cost_per_qty: latestCostPerPiece,
+            net_cost: latestNetCost,
+            sale_price: latestSelling,
+            selling_price: latestSelling,
+            selling_price_per_piece: latestSelling,
+            roi_percent: latestRoi,
+            gross_profit_percent: latestGross,
+          });
+
           await inventoryAPI.adjustStock({
             itemId: existingItem.item_id,
             quantity: unitsQty,
@@ -450,22 +489,34 @@ const Cutting = () => {
           // Keep process resilient in offline mode.
         }
       } else {
+        const latestNetCost = toFixed2(row.netAmountPerPiece);
+        const latestSelling = toFixed2(row.sellingPrice);
+        const latestRoi = toFixed2(row.roiPercent);
+        const latestCostPerPiece = toFixed2(row.costPerPiece);
+        const latestGross =
+          latestSelling > 0
+            ? toFixed2(((latestSelling - latestNetCost) / latestSelling) * 100)
+            : 0;
         const payload = {
           item_name: `${selectedJob.itemName} (${row.subdivision})`,
           item_code: newItemCode,
           barcode: newBarcode,
           stock: unitsQty,
           current_stock: unitsQty,
-          unit_name: 'UNIT',
-          selling_price: sellingPrice,
-          sale_price: sellingPrice,
-          purchase_price: costPerPiece,
+          unit_name: selectedJob.itemType === 'PRODUCT' ? 'Piece' : 'Meter',
+          unit: selectedJob.itemType === 'PRODUCT' ? 'PCS' : 'MTR',
+          selling_price: latestSelling,
+          sale_price: latestSelling,
+          purchase_price: latestCostPerPiece,
           service_charge: serviceCharge,
-          net_cost: netAmountPerPiece,
-          roi_percent: toFixed2(row.roiPercent),
+          net_cost: latestNetCost,
+          roi_percent: latestRoi,
+          gross_profit_percent: latestGross,
+          selling_price_per_piece: latestSelling,
+          cost_per_qty: latestCostPerPiece,
           description: `Cut piece from ${selectedJob.itemName} - ${row.subdivision}`,
           group: selectedJob.itemName,
-          item_type: 'FABRIC',
+          item_type: selectedJob.itemType || 'FABRIC',
         };
         try {
           await itemsAPI.createItem(payload);
@@ -552,7 +603,7 @@ const Cutting = () => {
         {selectedItem && (
           <Alert severity="success" sx={{ mt: 2 }}>
             <strong>{selectedItem.item_name}</strong> ({selectedItem.item_code}) | Available Stock:{' '}
-            {totalAvailableMeters} meters
+            {totalAvailableMeters} {unitLabel.toLowerCase()}
           </Alert>
         )}
       </Paper>
@@ -566,7 +617,7 @@ const Cutting = () => {
             <Grid item xs={12} md={3}>
               <TextField
                 fullWidth
-                label="Total Available Meters"
+                label={`Total Available ${unitLabel}`}
                 value={totalAvailableMeters}
                 InputProps={{ readOnly: true }}
               />
@@ -575,7 +626,7 @@ const Cutting = () => {
               <TextField
                 fullWidth
                 type="number"
-                label="Sending Meters *"
+                label={`Sending ${unitLabel} *`}
                 value={entry.sendingMeters}
                 onChange={(event) => setEntry((prev) => ({ ...prev, sendingMeters: event.target.value }))}
                 inputProps={{ min: 0, step: '0.01' }}
@@ -686,8 +737,8 @@ const Cutting = () => {
           {!sendingSummary.isMatched && sendingSummary.totalMeters > 0 && (
             <Alert severity={sendingSummary.isOverUsed ? 'error' : 'warning'} sx={{ mt: 2 }}>
               {sendingSummary.isOverUsed
-                ? `Total meters (${sendingSummary.totalMeters}) exceeds Sending Meters (${sendingMeters})`
-                : `Total meters (${sendingSummary.totalMeters}) is less than Sending Meters (${sendingMeters})`}
+                ? `Total ${unitLabel.toLowerCase()} (${sendingSummary.totalMeters}) exceeds Sending ${unitLabel} (${sendingMeters})`
+                : `Total ${unitLabel.toLowerCase()} (${sendingSummary.totalMeters}) is less than Sending ${unitLabel} (${sendingMeters})`}
             </Alert>
           )}
 
@@ -792,7 +843,7 @@ const Cutting = () => {
                 <Grid item xs={12} md={3}>
                   <Card variant="outlined">
                     <CardContent>
-                      <Typography variant="caption">Sending Meters</Typography>
+                      <Typography variant="caption">Sending {unitLabel}</Typography>
                       <Typography variant="h6">{toFixed2(selectedJob.sendingMeters)}</Typography>
                     </CardContent>
                   </Card>
@@ -883,12 +934,12 @@ const Cutting = () => {
 
               {receiveSummary.isOverUsed && (
                 <Alert severity="error" sx={{ mb: 2 }}>
-                  Total meters ({receiveSummary.totalMeters}) exceeds Sending Meters ({receiveSummary.sending})
+                  Total {unitLabel.toLowerCase()} ({receiveSummary.totalMeters}) exceeds Sending {unitLabel} ({receiveSummary.sending})
                 </Alert>
               )}
               {!receiveSummary.isOverUsed && receiveSummary.isUnderUsed && (
                 <Alert severity="warning" sx={{ mb: 2 }}>
-                  Total meters ({receiveSummary.totalMeters}) is less than Sending Meters ({receiveSummary.sending})
+                  Total {unitLabel.toLowerCase()} ({receiveSummary.totalMeters}) is less than Sending {unitLabel} ({receiveSummary.sending})
                 </Alert>
               )}
 

@@ -19,6 +19,13 @@ const resolveUniqueItemCode = async (preferredCode = '') => {
   return candidate;
 };
 
+const resolveUnitByItemType = (itemType = '') => {
+  const normalizedType = String(itemType || '').trim().toUpperCase();
+  if (normalizedType === 'FABRIC') return { unit: 'MTR', unit_name: 'Meter' };
+  if (normalizedType === 'PRODUCT') return { unit: 'PCS', unit_name: 'Piece' };
+  return { unit: 'PCS', unit_name: 'Piece' };
+};
+
 const mapItemToClient = (itemDoc) => {
   const item = typeof itemDoc.toJSON === 'function' ? itemDoc.toJSON() : itemDoc;
 
@@ -55,6 +62,7 @@ const mapItemToClient = (itemDoc) => {
     group_id: item.group_id || item.group || '',
     group_name: item.group_name || item.group || '',
     unit_name: item.unit_name || item.unit || 'Nos',
+    custom_product_name: item.custom_product_name || '',
     hsn_code: item.hsn_code || '',
     piece_meter: pieceMeter,
     cost_per_qty: costPerQty,
@@ -82,6 +90,7 @@ const mapPayloadToDb = (payload = {}) => ({
   group_id: payload.group_id ?? payload.group ?? '',
   group: payload.group ?? payload.group_name ?? payload.group_id ?? payload.group ?? 'General',
   item_type: String(payload.item_type || 'GENERAL').toUpperCase(),
+  custom_product_name: String(payload.custom_product_name || '').trim(),
   fabric_type: payload.fabric_type || '',
   color: payload.color || '',
   design: payload.design || '',
@@ -90,10 +99,9 @@ const mapPayloadToDb = (payload = {}) => ({
   roll_length: Number(payload.roll_length || 0),
   sale_price: payload.sale_price ?? payload.selling_price ?? 0,
   stock: payload.stock ?? payload.current_stock ?? 0,
-  unit:
-    payload.unit ??
-    payload.unit_name ??
-    (String(payload.item_type || '').toUpperCase() === 'FABRIC' ? 'MTR' : 'Nos'),
+  ...(payload.unit || payload.unit_name
+    ? { unit: payload.unit ?? payload.unit_name, unit_name: payload.unit_name ?? payload.unit }
+    : resolveUnitByItemType(payload.item_type)),
   tax: payload.tax ?? payload.tax_percentage ?? 0
 });
 
@@ -223,6 +231,10 @@ const createItem = async (req, res, next) => {
       res.status(400);
       throw new Error('barcode and item_name are required');
     }
+    if (String(req.body?.item_type || '').toUpperCase() === 'OTHER' && !String(req.body?.custom_product_name || '').trim()) {
+      res.status(400);
+      throw new Error('custom_product_name is required when item_type is OTHER');
+    }
 
     const duplicateBarcode = await Item.findOne({ barcode }).select('_id');
     if (duplicateBarcode) {
@@ -250,6 +262,10 @@ const updateItem = async (req, res, next) => {
     if (!barcode || !itemName) {
       res.status(400);
       throw new Error('barcode and item_name are required');
+    }
+    if (String(req.body?.item_type || '').toUpperCase() === 'OTHER' && !String(req.body?.custom_product_name || '').trim()) {
+      res.status(400);
+      throw new Error('custom_product_name is required when item_type is OTHER');
     }
     const duplicateBarcode = await Item.findOne({
       barcode,

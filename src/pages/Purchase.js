@@ -48,7 +48,7 @@ import { itemsAPI, purchaseAPI, suppliersAPI } from '../services/api';
 import { toast } from 'react-hot-toast';
 
 const PAYMENT_OPTIONS = ['CASH', 'UPI', 'CARD', 'BANK', 'CREDIT'];
-const PIECE_METER_OPTIONS = ['1', '3', '5', '10', 'ROLL'];
+const PIECE_METER_OPTIONS = ['1', '2', '5', '10', 'ROLL'];
 const PURCHASE_GRID_COLUMN_DIVIDER = '1px solid #e2e8f0';
 
 const emptyPurchaseForm = {
@@ -89,6 +89,7 @@ const emptyReturnForm = {
 
 const createEmptyRow = () => ({
   code: '',
+  color: '',
   hsnCode: '',
   description: '',
   qty: '',
@@ -114,6 +115,8 @@ const createEmptyRow = () => ({
   netAmount: '',
   itemId: '',
   barcode: '',
+  itemType: 'FABRIC',
+  customProductName: '',
 });
 
 const toNumber = (value) => {
@@ -132,6 +135,7 @@ const toCompact2 = (value) => {
 
 const normalizePieceMeterOption = (value) => {
   const normalized = String(value ?? '').trim().toUpperCase();
+  if (normalized === '3') return '2';
   if (PIECE_METER_OPTIONS.includes(normalized)) {
     return normalized;
   }
@@ -352,6 +356,37 @@ const Purchase = () => {
 
   const holdOrders = Array.isArray(holdOrdersData?.data?.orders) ? holdOrdersData.data.orders : [];
 
+  const latestPurchaseContextByCode = useMemo(() => {
+    const map = new Map();
+    const getOrderTs = (order = {}) => {
+      const byPurchaseDate = new Date(order.purchase_date || 0).getTime();
+      const byCreatedAt = new Date(order.createdAt || 0).getTime();
+      return Math.max(byPurchaseDate || 0, byCreatedAt || 0);
+    };
+
+    const register = (keyRaw, context) => {
+      const key = String(keyRaw || '').trim().toUpperCase();
+      if (!key) return;
+      const existing = map.get(key);
+      if (!existing || context.ts > existing.ts) {
+        map.set(key, context);
+      }
+    };
+
+    [...purchaseOrders, ...holdOrders].forEach((order) => {
+      const ts = getOrderTs(order);
+      (Array.isArray(order.items) ? order.items : []).forEach((line) => {
+        const code = line.code || line.item_code || '';
+        const barcode = line.barcode || '';
+        const context = { ts, order, line };
+        register(code, context);
+        register(barcode, context);
+      });
+    });
+
+    return map;
+  }, [purchaseOrders, holdOrders]);
+
   const stats = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
     const todaysPurchases = purchaseOrders
@@ -379,6 +414,7 @@ const Purchase = () => {
     const baseColumns = [
       { key: 'code', label: 'Code', type: 'text' },
       { key: 'description', label: 'Desc', type: 'text' },
+      { key: 'color', label: 'Color', type: 'text' },
       { key: 'qty', label: 'Quantity-Meter', type: 'number' },
       { key: 'shrinkage', label: 'Shrinkage (%)', type: 'number' },
       { key: 'availableQty', label: 'Available Qty', type: 'number', readOnly: true },
@@ -579,6 +615,7 @@ const Purchase = () => {
     const row = {
       ...createEmptyRow(),
       code,
+      color: String(item.color || '').trim(),
       hsnCode: String(item.hsn_code || item.hsnCode || '').trim(),
       description,
       qty: toCompact2(qty),
@@ -605,6 +642,8 @@ const Purchase = () => {
       netAmount: toCompact2(amount),
       itemId: String(item.itemId || item.item_id || item.id || '').trim(),
       barcode: String(item.barcode || code).trim(),
+      itemType: String(item.item_type || item.itemType || 'FABRIC').trim().toUpperCase(),
+      customProductName: String(item.custom_product_name || '').trim(),
     };
     return recalculateRow(row);
   }, []);
@@ -670,7 +709,7 @@ const Purchase = () => {
       let sourceOrder = order;
       try {
         const response = await purchaseAPI.getOrder(id);
-        sourceOrder = response?.data || order;
+        sourceOrder = response?.data?.data || response?.data || order;
       } catch (error) {
         toast.error(error?.message || 'Failed to load purchase details');
         return;
@@ -715,8 +754,8 @@ const Purchase = () => {
     handledEditPurchaseIdRef.current = requestKey;
     purchaseAPI
       .getOrder(targetPurchaseId)
-      .then((response) => {
-        const order = response?.data;
+        .then((response) => {
+        const order = response?.data?.data || response?.data;
         if (!order) {
           toast.error('Linked purchase bill not found');
           return;
@@ -924,6 +963,9 @@ const Purchase = () => {
       if (!sourceCode) return;
 
       try {
+        const normalizedSourceCode = sourceCode.toUpperCase();
+        const latestPurchaseContext =
+          latestPurchaseContextByCode.get(normalizedSourceCode) || null;
         const item = await findItemByCode(sourceCode);
         if (!item) {
           setRows((prev) => {
@@ -940,31 +982,57 @@ const Purchase = () => {
         setRows((prev) => {
           const next = [...prev];
           const current = { ...next[rowIndex] };
+          const historyRow = latestPurchaseContext?.line
+            ? mapPurchaseItemToRow(latestPurchaseContext.line)
+            : null;
           const qty = toNumber(current.qty);
           const itemPieceMeter = normalizePieceMeterOption(
-            item.piece_meter ?? item.pieceMeter ?? item.unit_name ?? current.pieceMeter
+            String(item.item_type || '').toUpperCase() === 'PRODUCT'
+              ? '1'
+              : item.piece_meter ?? item.pieceMeter ?? item.unit_name ?? current.pieceMeter
           );
-          const itemCostPerQty = toNumber(
-            item.cost_per_qty ?? item.costPerQty ?? item.purchase_price ?? item.net_cost ?? item.cost
-          );
-          const itemCost = toNumber(item.cost ?? (itemCostPerQty > 0 ? itemCostPerQty * qty : 0));
-          const itemDiscountPercent = toNumber(item.discount_percent ?? item.discountPercent);
-          const itemDiscountAmount = toNumber(item.discount_amount ?? item.discountAmount);
-          const itemTaxPercent = toNumber(item.tax_percentage ?? item.tax ?? item.taxPercent);
-          const itemTaxAmount = toNumber(item.tax_amount ?? item.taxAmount);
-          const itemNetCost = toNumber(item.net_cost ?? item.netCost);
-          const itemRoi = toNumber(item.roi_percent ?? item.roiPercent);
-          const itemGross = toNumber(item.gross_profit_percent ?? item.grossProfitPercent);
-          const itemSellingPrice = toNumber(item.selling_price ?? item.sale_price ?? item.sellingPrice);
-          const itemSellingPricePerPiece = toNumber(
-            item.selling_price_per_piece ?? item.sellingPricePerPiece
-          );
-          const itemNetAmount = toNumber(item.net_amount ?? item.netAmount);
+          const itemCostPerQty = historyRow
+            ? toNumber(historyRow.costPerQty)
+            : toNumber(item.cost_per_qty ?? item.costPerQty ?? item.purchase_price ?? item.net_cost ?? item.cost);
+          const itemCost = historyRow
+            ? toNumber(historyRow.cost)
+            : toNumber(item.cost ?? (itemCostPerQty > 0 ? itemCostPerQty * qty : 0));
+          const itemDiscountPercent = historyRow
+            ? toNumber(historyRow.discountPercent)
+            : toNumber(item.discount_percent ?? item.discountPercent);
+          const itemDiscountAmount = historyRow
+            ? toNumber(historyRow.discountAmount)
+            : toNumber(item.discount_amount ?? item.discountAmount);
+          const itemTaxPercent = historyRow
+            ? toNumber(historyRow.taxPercent)
+            : toNumber(item.tax_percentage ?? item.tax ?? item.taxPercent);
+          const itemTaxAmount = historyRow
+            ? toNumber(historyRow.taxAmount)
+            : toNumber(item.tax_amount ?? item.taxAmount);
+          const itemNetCost = historyRow
+            ? toNumber(historyRow.netCost)
+            : toNumber(item.net_cost ?? item.netCost);
+          const itemRoi = historyRow
+            ? toNumber(historyRow.roiPercent)
+            : toNumber(item.roi_percent ?? item.roiPercent);
+          const itemGross = historyRow
+            ? toNumber(historyRow.grossProfitPercent)
+            : toNumber(item.gross_profit_percent ?? item.grossProfitPercent);
+          const itemSellingPrice = historyRow
+            ? toNumber(historyRow.sellingPrice)
+            : toNumber(item.selling_price ?? item.sale_price ?? item.sellingPrice);
+          const itemSellingPricePerPiece = historyRow
+            ? toNumber(historyRow.sellingPricePerPiece)
+            : toNumber(item.selling_price_per_piece ?? item.sellingPricePerPiece);
+          const itemNetAmount = historyRow
+            ? toNumber(historyRow.netAmount)
+            : toNumber(item.net_amount ?? item.netAmount);
 
           current.code = item.item_code || item.barcode || sourceCode;
-          current.hsnCode = String(item.hsn_code || '').trim();
-          current.description = item.item_name || current.description || '';
-          current.pieceMeter = itemPieceMeter;
+          current.color = historyRow ? String(historyRow.color || '').trim() : String(item.color || current.color || '').trim();
+          current.hsnCode = historyRow ? String(historyRow.hsnCode || '').trim() : String(item.hsn_code || '').trim();
+          current.description = historyRow ? String(historyRow.description || '').trim() : (item.item_name || current.description || '');
+          current.pieceMeter = historyRow ? normalizePieceMeterOption(historyRow.pieceMeter) : itemPieceMeter;
           current.costInputMode = 'costPerQty';
           current.costPerQty = toCompact2(itemCostPerQty);
           current.cost = toCompact2(itemCost);
@@ -980,14 +1048,32 @@ const Purchase = () => {
           current.netAmount = toCompact2(itemNetAmount);
           current.itemId = item.item_id || item.id || '';
           current.barcode = item.barcode || sourceCode;
+          current.itemType = String(item.item_type || 'FABRIC').toUpperCase();
+          current.customProductName = String(item.custom_product_name || '').trim();
+          if (historyRow && toNumber(current.qty) <= 0) {
+            current.qty = toCompact2(historyRow.qty);
+          }
           next[rowIndex] = recalculateRow(current, 'costPerQty');
           return next;
         });
+
+        if (
+          latestPurchaseContext?.order &&
+          !String(purchaseForm.supplier_id || '').trim()
+        ) {
+          const order = latestPurchaseContext.order;
+          setPurchaseForm((prev) => ({
+            ...prev,
+            supplier_id: String(order.supplier_id || prev.supplier_id || '').trim(),
+            supplier_code: String(order.supplier_code || prev.supplier_code || '').trim(),
+            supplier_name: String(order.supplier_name || prev.supplier_name || '').trim(),
+          }));
+        }
       } catch (error) {
         toast.error(error?.message || 'Failed to fetch item');
       }
     },
-    [rows]
+    [latestPurchaseContextByCode, mapPurchaseItemToRow, purchaseForm.supplier_id, rows]
   );
 
   const createPurchase = useCallback(
@@ -1040,8 +1126,8 @@ const Purchase = () => {
       }
 
       const paidAmount = purchaseForm.paid_amount === '' ? 0 : Math.max(0, Number(purchaseForm.paid_amount || 0));
-      if (!hold && paidAmount !== grandTotal) {
-        toast.error('Paid amount must equal grand total');
+      if (!hold && paidAmount > grandTotal) {
+        toast.error('Paid amount cannot exceed grand total');
         return;
       }
 
@@ -1066,12 +1152,15 @@ const Purchase = () => {
 
           return {
             itemId: row.itemId || '',
+            item_type: row.itemType || 'FABRIC',
+            custom_product_name: String(row.customProductName || '').trim(),
             barcode: String(row.barcode || row.code || '').trim(),
             itemName: String(row.description || '').trim(),
             qty: Number(toFixed2(row.qty)),
             rate: Number(toFixed2(row.netCost)),
             amount: Number(toFixed2(row.netAmount)),
             code: String(row.code || '').trim(),
+            color: String(row.color || '').trim(),
             hsn_code: String(row.hsnCode || '').trim(),
             description: String(row.description || '').trim(),
             shrinkage: Number(toFixed2(row.shrinkage)),
@@ -1480,6 +1569,7 @@ const Purchase = () => {
                   <col style={{ width: '2%' }} />    {/* S.No */}
                   <col style={{ width: '6%' }} />    {/* Code */}
                   <col style={{ width: '12%' }} />   {/* Desc */}
+                  <col style={{ width: '6%' }} />    {/* Color */}
                   <col style={{ width: '4%' }} />    {/* Qty */}
                   <col style={{ width: '4%' }} />    {/* Shrinkage */}
                   <col style={{ width: '4%' }} />    {/* Available Qty */}
@@ -1551,7 +1641,7 @@ const Purchase = () => {
                               >
                                 {PIECE_METER_OPTIONS.map((option) => (
                                   <option key={option} value={option}>
-                                    {option === 'ROLL' ? 'Rolls' : option}
+                                    {option === 'ROLL' ? 'Piece' : option}
                                   </option>
                                 ))}
                               </select>

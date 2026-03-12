@@ -2246,7 +2246,7 @@ const Reports = () => {
           <Paper sx={{ p: 2, mb: 2 }}>
             <Typography variant="h6" sx={{ mb: 2 }}>Management Dashboard - Business Overview</Typography>
             <Grid container spacing={2}>
-              <Grid item xs={12} md={3}>
+              <Grid item xs={12} md={2.4}>
                 <Card>
                   <CardContent>
                     <Typography variant="h6" color="primary">Total Sales</Typography>
@@ -2255,7 +2255,7 @@ const Reports = () => {
                   </CardContent>
                 </Card>
               </Grid>
-              <Grid item xs={12} md={3}>
+              <Grid item xs={12} md={2.4}>
                 <Card>
                   <CardContent>
                     <Typography variant="h6" color="primary">Gross Profit</Typography>
@@ -2264,7 +2264,23 @@ const Reports = () => {
                   </CardContent>
                 </Card>
               </Grid>
-              <Grid item xs={12} md={3}>
+              <Grid item xs={12} md={2.4}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" color="primary">Expenses</Typography>
+                    <Typography variant="h4">
+                      {money(
+                        pnlData?.data?.summary?.total_expenses ??
+                        pnlData?.data?.summary?.expenses ??
+                        pnlData?.data?.summary?.expense_amount ??
+                        0
+                      )}
+                    </Typography>
+                    <Typography variant="body2" color="warning">Cost Outflow</Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={12} md={2.4}>
                 <Card>
                   <CardContent>
                     <Typography variant="h6" color="primary">Active Customers</Typography>
@@ -2273,7 +2289,7 @@ const Reports = () => {
                   </CardContent>
                 </Card>
               </Grid>
-              <Grid item xs={12} md={3}>
+              <Grid item xs={12} md={2.4}>
                 <Card>
                   <CardContent>
                     <Typography variant="h6" color="primary">Total Orders</Typography>
@@ -4032,7 +4048,7 @@ const Reports = () => {
             <>
               {/* Gross vs Net Profit Summary */}
               <Grid container spacing={2} sx={{ mb: 2 }}>
-                <Grid item xs={12} md={3}>
+                <Grid item xs={12} md={2.4}>
                   <Card>
                     <CardContent>
                       <Typography variant="h6">Total Sales</Typography>
@@ -4041,7 +4057,7 @@ const Reports = () => {
                     </CardContent>
                   </Card>
                 </Grid>
-                <Grid item xs={12} md={3}>
+                <Grid item xs={12} md={2.4}>
                   <Card>
                     <CardContent>
                       <Typography variant="h6">Total Cost</Typography>
@@ -4050,7 +4066,7 @@ const Reports = () => {
                     </CardContent>
                   </Card>
                 </Grid>
-                <Grid item xs={12} md={3}>
+                <Grid item xs={12} md={2.4}>
                   <Card>
                     <CardContent>
                       <Typography variant="h6">Gross Profit</Typography>
@@ -4059,7 +4075,23 @@ const Reports = () => {
                     </CardContent>
                   </Card>
                 </Grid>
-                <Grid item xs={12} md={3}>
+                <Grid item xs={12} md={2.4}>
+                  <Card>
+                    <CardContent>
+                      <Typography variant="h6">Expenses</Typography>
+                      <Typography variant="h4">
+                        {money(
+                          pnlData.data.summary?.total_expenses ??
+                          pnlData.data.summary?.expenses ??
+                          pnlData.data.summary?.expense_amount ??
+                          0
+                        )}
+                      </Typography>
+                      <Typography variant="body2" color="warning">Operating + Other</Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+                <Grid item xs={12} md={2.4}>
                   <Card>
                     <CardContent>
                       <Typography variant="h6">Net Profit</Typography>

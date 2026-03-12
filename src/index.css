@@ -16,6 +16,13 @@ body {
   overflow-x: hidden;
 }
 
+html,
+body,
+#root {
+  height: 100%;
+  scroll-behavior: smooth;
+}
+
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
@@ -38,6 +45,18 @@ code {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
+}
+
+/* Smooth scrolling and stable scrollbars across data/filter areas */
+.MuiTableContainer-root,
+.MuiDialogContent-root,
+.MuiAutocomplete-listbox,
+.MuiMenu-paper .MuiList-root,
+.MuiDataGrid-virtualScroller {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 /* Utility Classes */

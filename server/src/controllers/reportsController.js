@@ -493,6 +493,7 @@ const getProfitLossReport = async (req, res, next) => {
         summary: {
           sales_amount: Number(salesAmount.toFixed(2)),
           purchase_amount: Number(purchaseAmount.toFixed(2)),
+          total_expenses: Number(totalExpenses.toFixed(2)),
           gross_profit: Number(grossProfit.toFixed(2)),
           net_profit: Number(netProfit.toFixed(2)),
           margin_pct: Number(marginPct.toFixed(2)),

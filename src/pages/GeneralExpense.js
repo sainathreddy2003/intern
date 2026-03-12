@@ -393,13 +393,9 @@ const getFilteredStats = (expenses, filter, month = null, year = null) => {
 };
 
 const GeneralExpense = () => {
-  // Helper function to get days in current month
-  const getDaysInCurrentMonth = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth() + 1; // JavaScript months are 0-based
-    return new Date(year, month, 0).getDate(); // Last day of previous month = days in current month
-  };
+  const getDaysInMonth = (year, monthIndex) => new Date(year, monthIndex + 1, 0).getDate();
+
+  const resolveEmployeeMonthDays = () => getDaysInMonth(selectedYear, selectedMonth);
 
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
@@ -502,7 +498,7 @@ const GeneralExpense = () => {
     position: '',
     salary: '',
     reduction: '',
-    total_days_per_month: getDaysInCurrentMonth(),
+    total_days_per_month: getDaysInMonth(new Date().getFullYear(), new Date().getMonth()),
     totalDays: '',
     marginDays: '',
     status: 'ACTIVE',
@@ -580,7 +576,7 @@ const GeneralExpense = () => {
       employeeCode: '',
       salary: '',
       deduction: '',
-      totalDaysInMonth: getDaysInCurrentMonth(),
+      totalDaysInMonth: getDaysInMonth(new Date().getFullYear(), new Date().getMonth()),
       hire_date: format(new Date(), 'yyyy-MM-dd'),
       status: ''
     }))
@@ -605,13 +601,32 @@ const GeneralExpense = () => {
 
   const calculateMonthlySalary = (employee) => {
     const monthlySalary = Number(employee.salary) || 0;
-    const reduction = Number(employee.reduction) || 0;
-    const inHandSalary = monthlySalary - reduction;
+    const totalDaysInMonth = Math.max(1, Number(employee.total_days_per_month) || resolveEmployeeMonthDays());
+    const presentDaysRaw =
+      employee.present_days ??
+      employee.presentDays ??
+      employee.total_day_present ??
+      null;
+    const presentDaysParsed = Number(presentDaysRaw);
+    const presentDays = Number.isFinite(presentDaysParsed)
+      ? Math.min(Math.max(presentDaysParsed, 0), totalDaysInMonth)
+      : 0;
+    const deductionDays = Math.max(totalDaysInMonth - presentDays, 0);
+    const perDaySalary = monthlySalary / totalDaysInMonth;
+    const reduction = Number((perDaySalary * deductionDays).toFixed(2));
+    const inHandSalary = Math.max(0, Number((monthlySalary - reduction).toFixed(2)));
+    const hasAttendance = presentDays > 0;
+
     return {
       monthlySalary,
+      totalDaysInMonth,
+      presentDays,
+      deductionDays,
+      perDaySalary,
       reduction,
       inHandSalary,
-      yearlySalary: monthlySalary * 12
+      yearlySalary: Number((inHandSalary * 12).toFixed(2)),
+      hasAttendance,
     };
   };
 
@@ -646,20 +661,20 @@ const GeneralExpense = () => {
 
   // Calculate filtered employees based on year and month
   const getFilteredEmployees = () => {
-    if (!employeeData?.data?.detailed) return [];
+    const employees = (editableEmployees || []).filter(
+      (employee) => String(employee.employee_name || employee.name || '').trim() !== ''
+    );
+    if (!employees.length) return [];
 
-    return employeeData.data.detailed.filter(employee => {
-      const employeeDate = new Date(employee.hire_date);
-      const filterYear = selectedYear;
-      const filterMonth = salaryViewMode === 'monthly' ? selectedMonth : null;
+    const periodEnd = salaryViewMode === 'monthly'
+      ? new Date(selectedYear, selectedMonth + 1, 0, 23, 59, 59, 999)
+      : new Date(selectedYear, 11, 31, 23, 59, 59, 999);
 
-      // If no month filter, only filter by year
-      if (!filterMonth) {
-        return employeeDate.getFullYear() === filterYear;
-      }
-
-      // If both year and month filter
-      return employeeDate.getFullYear() === filterYear && employeeDate.getMonth() === filterMonth;
+    return employees.filter((employee) => {
+      if (!employee.hire_date) return true;
+      const hireDate = new Date(employee.hire_date);
+      if (Number.isNaN(hireDate.getTime())) return true;
+      return hireDate <= periodEnd;
     });
   };
 
@@ -669,8 +684,12 @@ const GeneralExpense = () => {
     const totalEmployees = filteredEmployees.length;
 
     if (salaryViewMode === 'monthly') {
-      const totalMonthly = filteredEmployees.reduce((sum, emp) => sum + calculateMonthlySalary(emp).inHandSalary, 0);
-      const totalYearly = filteredEmployees.reduce((sum, emp) => sum + calculateMonthlySalary(emp).yearlySalary, 0);
+      const totalMonthly = filteredEmployees.reduce((sum, emp) => sum + Number(calculateMonthlySalary(emp).inHandSalary || 0), 0);
+      const totalYearly = filteredEmployees.reduce((sum, emp) => {
+        const calc = calculateMonthlySalary(emp);
+        const yearly = calc.hasAttendance ? calc.yearlySalary : (calc.inHandSalary * 12);
+        return sum + Number(yearly || 0);
+      }, 0);
 
       return {
         totalEmployees,
@@ -679,7 +698,11 @@ const GeneralExpense = () => {
         period: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][selectedMonth] + ' ' + selectedYear
       };
     } else {
-      const totalYearly = filteredEmployees.reduce((sum, emp) => sum + calculateMonthlySalary(emp).yearlySalary, 0);
+      const totalYearly = filteredEmployees.reduce((sum, emp) => {
+        const calc = calculateMonthlySalary(emp);
+        const yearly = calc.hasAttendance ? calc.yearlySalary : (calc.inHandSalary * 12);
+        return sum + Number(yearly || 0);
+      }, 0);
       const avgMonthly = totalEmployees > 0 ? Math.round(totalYearly / 12 / totalEmployees) : 0;
 
       return {
@@ -4866,7 +4889,8 @@ const GeneralExpense = () => {
                 {[...(editableEmployees || []), ...newEmployeeRows].map((employee, index) => {
                   const salaryCalc = calculateMonthlySalary({
                     salary: Number(employee.salary) || 0,
-                    reduction: Number(employee.reduction) || 0
+                    total_days_per_month: resolveEmployeeMonthDays(),
+                    total_day_present: Number(employee.total_day_present) || 0
                   });
                   return (
                     <TableRow key={employee.id} hover>
@@ -5008,49 +5032,29 @@ const GeneralExpense = () => {
                         )}
                       </TableCell>
                       <TableCell>
-                        {employee.isNew ? (
-                          <TextField
-                            size="small"
-                            type="number"
-                            value={employee.reduction || ''}
-                            onChange={(e) => {
-                              const updatedNewRows = newEmployeeRows.map(emp =>
-                                emp.id === employee.id
-                                  ? { ...emp, reduction: e.target.value }
-                                  : emp
-                              );
-                              setNewEmployeeRows(updatedNewRows);
-                            }}
-                            placeholder="0"
-                            sx={{ width: '100%' }}
-                          />
-                        ) : (
-                          <TextField
-                            size="small"
-                            type="number"
-                            value={employee.reduction || ''}
-                            onChange={(e) => {
-                              const updatedEmployees = editableEmployees.map(emp =>
-                                emp.id === employee.id
-                                  ? { ...emp, reduction: e.target.value }
-                                  : emp
-                              );
-                              setEditableEmployees(updatedEmployees);
-                            }}
-                            placeholder="0"
-                            sx={{ width: '100%' }}
-                          />
-                        )}
-                      </TableCell>
-                      <TableCell>
                         <TextField
                           size="small"
                           type="number"
-                          value={getDaysInCurrentMonth()}
+                          value={salaryCalc.reduction}
                           disabled
                           sx={{
                             width: '100%',
                             '& .MuiInputBase-input.Mui-disabled': {
+                              color: '#000',
+                              WebkitTextFillColor: '#000'
+                            }
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                          <TextField
+                            size="small"
+                            type="number"
+                            value={resolveEmployeeMonthDays(employee)}
+                            disabled
+                            sx={{
+                              width: '100%',
+                              '& .MuiInputBase-input.Mui-disabled': {
                               color: '#000',
                               WebkitTextFillColor: '#000'
                             }
@@ -5094,10 +5098,7 @@ const GeneralExpense = () => {
                       </TableCell>
                       <TableCell>
                         <Typography sx={{ fontSize: '0.75rem', fontWeight: 700, color: 'success.main' }}>
-                          ₹{calculateMonthlySalary({
-                            salary: Number(employee.salary) || 0,
-                            reduction: Number(employee.reduction) || 0
-                          }).inHandSalary.toLocaleString()}
+                          ₹{salaryCalc.inHandSalary.toLocaleString()}
                         </Typography>
                       </TableCell>
                       <TableCell>
@@ -5278,6 +5279,11 @@ const GeneralExpense = () => {
                 .filter(emp => !emp.isNew)
                 .map(emp => {
                   const id = emp.id || emp._id;
+                  const salaryCalc = calculateMonthlySalary({
+                    salary: Number(emp.salary) || 0,
+                    total_days_per_month: resolveEmployeeMonthDays(),
+                    total_day_present: Number(emp.total_day_present || 0),
+                  });
                   return {
                     id,
                     employee_name: emp.employee_name || emp.name || 'Unknown',
@@ -5287,9 +5293,9 @@ const GeneralExpense = () => {
                     department: emp.department || '',
                     position: emp.position || '',
                     salary: Number(emp.salary) || 0,
-                    reduction: Number(emp.reduction) || 0,
+                    reduction: Number(salaryCalc.reduction || 0),
                     ot: Number(emp.ot) || 0,
-                    total_days_per_month: Number(emp.total_days_per_month || 30),
+                    total_days_per_month: Number(resolveEmployeeMonthDays()),
                     total_day_present: Number(emp.total_day_present || 0),
                     status: emp.status || 'ACTIVE',
                     hire_date: emp.hire_date || new Date().toISOString().split('T')[0],
@@ -5299,22 +5305,29 @@ const GeneralExpense = () => {
 
               const newEmployeesToCreate = newEmployeeRows
                 .filter(emp => emp.employee_name || emp.employee_code || emp.department || emp.salary || emp.reduction || emp.ot)
-                .map(emp => ({
-                  name: emp.employee_name || 'Unknown',
-                  employee_name: emp.employee_name || 'Unknown',
-                  employee_code: emp.employee_code || '',
-                  email: emp.email || '',
-                  phone: emp.phone || '',
-                  department: emp.department || '',
-                  position: emp.position || '',
-                  salary: Number(emp.salary) || 0,
-                  reduction: Number(emp.reduction) || 0,
-                  ot: Number(emp.ot) || 0,
-                  total_days_per_month: Number(emp.total_days_per_month || 30),
-                  total_day_present: Number(emp.total_day_present || 0),
-                  status: (emp.status || 'ACTIVE').toUpperCase(),
-                  hire_date: emp.hire_date || new Date().toISOString().split('T')[0],
-                }));
+                .map(emp => {
+                  const salaryCalc = calculateMonthlySalary({
+                    salary: Number(emp.salary) || 0,
+                    total_days_per_month: resolveEmployeeMonthDays(),
+                    total_day_present: Number(emp.total_day_present || 0),
+                  });
+                  return {
+                    name: emp.employee_name || 'Unknown',
+                    employee_name: emp.employee_name || 'Unknown',
+                    employee_code: emp.employee_code || '',
+                    email: emp.email || '',
+                    phone: emp.phone || '',
+                    department: emp.department || '',
+                    position: emp.position || '',
+                    salary: Number(emp.salary) || 0,
+                    reduction: Number(salaryCalc.reduction || 0),
+                    ot: Number(emp.ot) || 0,
+                    total_days_per_month: Number(resolveEmployeeMonthDays()),
+                    total_day_present: Number(emp.total_day_present || 0),
+                    status: (emp.status || 'ACTIVE').toUpperCase(),
+                    hire_date: emp.hire_date || new Date().toISOString().split('T')[0],
+                  };
+                });
 
               const totalOperations = existingEmployeesToUpdate.length + newEmployeesToCreate.length;
               if (totalOperations === 0) {
@@ -5412,16 +5425,21 @@ const GeneralExpense = () => {
                   <Grid item xs={12} sm={6}>
                     <Card sx={{ p: 2 }}>
                       <Typography variant="subtitle2" color="text.secondary">Net Salary</Typography>
-                      <Typography variant="h6" color="success.main">₹{calculateMonthlySalary({
+                      <Typography variant="h6" color="success.main">{calculateMonthlySalary({
                         salary: Number(selectedEmployee?.salary) || 0,
-                        reduction: Number(selectedEmployee?.reduction) || 0
-                      }).inHandSalary.toLocaleString()}</Typography>
+                        reduction: Number(selectedEmployee?.reduction) || 0,
+                        total_day_present: Number(selectedEmployee?.total_day_present) || 0
+                      }).hasAttendance ? `₹${calculateMonthlySalary({
+                        salary: Number(selectedEmployee?.salary) || 0,
+                        reduction: Number(selectedEmployee?.reduction) || 0,
+                        total_day_present: Number(selectedEmployee?.total_day_present) || 0
+                      }).inHandSalary.toLocaleString()}` : ''}</Typography>
                     </Card>
                   </Grid>
                   <Grid item xs={12} sm={6}>
                     <Card sx={{ p: 2 }}>
                       <Typography variant="subtitle2" color="text.secondary">Working Days</Typography>
-                      <Typography variant="h6">{selectedEmployee.totalDays || 30} days</Typography>
+                      <Typography variant="h6">{resolveEmployeeMonthDays(selectedEmployee)} days</Typography>
                     </Card>
                   </Grid>
                 </Grid>
@@ -5431,10 +5449,15 @@ const GeneralExpense = () => {
                   <Grid item xs={12} sm={6}>
                     <Card sx={{ p: 2 }}>
                       <Typography variant="subtitle2" color="text.secondary">Yearly Gross</Typography>
-                      <Typography variant="h6">₹{calculateMonthlySalary({
+                      <Typography variant="h6">{calculateMonthlySalary({
                         salary: Number(selectedEmployee?.salary) || 0,
-                        reduction: Number(selectedEmployee?.reduction) || 0
-                      }).yearlySalary.toLocaleString()}</Typography>
+                        reduction: Number(selectedEmployee?.reduction) || 0,
+                        total_day_present: Number(selectedEmployee?.total_day_present) || 0
+                      }).hasAttendance ? `₹${calculateMonthlySalary({
+                        salary: Number(selectedEmployee?.salary) || 0,
+                        reduction: Number(selectedEmployee?.reduction) || 0,
+                        total_day_present: Number(selectedEmployee?.total_day_present) || 0
+                      }).yearlySalary.toLocaleString()}` : ''}</Typography>
                     </Card>
                   </Grid>
                   <Grid item xs={12} sm={6}>
@@ -5449,16 +5472,21 @@ const GeneralExpense = () => {
                   <Grid item xs={12} sm={6}>
                     <Card sx={{ p: 2 }}>
                       <Typography variant="subtitle2" color="text.secondary">Yearly Net</Typography>
-                      <Typography variant="h6" color="success.main">₹{(calculateMonthlySalary({
+                      <Typography variant="h6" color="success.main">{(calculateMonthlySalary({
                         salary: Number(selectedEmployee?.salary) || 0,
-                        reduction: Number(selectedEmployee?.reduction) || 0
-                      }).inHandSalary * 12).toLocaleString()}</Typography>
+                        reduction: Number(selectedEmployee?.reduction) || 0,
+                        total_day_present: Number(selectedEmployee?.total_day_present) || 0
+                      }).hasAttendance ? `₹${(calculateMonthlySalary({
+                        salary: Number(selectedEmployee?.salary) || 0,
+                        reduction: Number(selectedEmployee?.reduction) || 0,
+                        total_day_present: Number(selectedEmployee?.total_day_present) || 0
+                      }).inHandSalary * 12).toLocaleString()}` : '')}</Typography>
                     </Card>
                   </Grid>
                   <Grid item xs={12} sm={6}>
                     <Card sx={{ p: 2 }}>
                       <Typography variant="subtitle2" color="text.secondary">Total Work Days</Typography>
-                      <Typography variant="h6">{(selectedEmployee.totalDays || 30) * 12} days</Typography>
+                      <Typography variant="h6">{resolveEmployeeMonthDays(selectedEmployee) * 12} days</Typography>
                     </Card>
                   </Grid>
                 </Grid>

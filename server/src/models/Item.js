@@ -34,8 +34,13 @@ const itemSchema = new mongoose.Schema(
       type: String,
       trim: true,
       uppercase: true,
-      enum: ['GENERAL', 'FABRIC'],
+      enum: ['GENERAL', 'FABRIC', 'PRODUCT', 'OTHER'],
       default: 'GENERAL'
+    },
+    custom_product_name: {
+      type: String,
+      trim: true,
+      default: ''
     },
     fabric_type: {
       type: String,

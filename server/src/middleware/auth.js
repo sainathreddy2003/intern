@@ -1,6 +1,13 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const { runWithTenant } = require('../context/tenantContext');
+const { runWithTenant, getDefaultTenantDb } = require('../context/tenantContext');
+
+const resolveTenantDb = (decodedDbName) => {
+  const masterDbName = (process.env.MASTER_DB_NAME || 'erp_master').trim();
+  const defaultTenantDb = getDefaultTenantDb();
+  if (!decodedDbName) return null;
+  return decodedDbName === masterDbName ? defaultTenantDb : decodedDbName;
+};
 
 const protect = async (req, res, next) => {
   try {
@@ -14,12 +21,13 @@ const protect = async (req, res, next) => {
     const token = header.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    if (!decoded?.dbName) {
+    const tenantDbName = resolveTenantDb(decoded?.dbName);
+    if (!tenantDbName) {
       res.status(401);
       throw new Error('Not authorized, tenant database missing in token');
     }
 
-    const user = await runWithTenant(decoded.dbName, async () =>
+    const user = await runWithTenant(tenantDbName, async () =>
       User.findById(decoded.id).select('-password')
     );
 
@@ -29,7 +37,7 @@ const protect = async (req, res, next) => {
     }
 
     req.user = user;
-    req.tenantDbName = decoded.dbName;
+    req.tenantDbName = tenantDbName;
     next();
   } catch (error) {
     if (res.statusCode === 200) {

@@ -48,6 +48,7 @@ const saleSchema = new mongoose.Schema(
     paidAmount: { type: Number, default: 0 },
     dueAmount: { type: Number, default: 0 },
     source: { type: String, default: 'MANUAL', index: true },
+    remarks: { type: String, default: '' },
     billType: { type: String, default: 'SALES', index: true },
     reason: { type: String, default: '' },
     totalItems: { type: Number, default: 0 },

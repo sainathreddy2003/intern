@@ -71,19 +71,28 @@ const resolveItemForLine = async (line = {}) => {
   const purchasePrice = Math.max(0, toNumber(line.cost_per_qty || line.cost));
   const salePrice = Math.max(0, toNumber(line.selling_price || line.mrp));
   const tax = Math.max(0, toNumber(line.tax_percent || 0));
+  const itemType = String(line.item_type || line.itemType || 'FABRIC').trim().toUpperCase();
   const unitType = String(line.unit_type || '').toLowerCase();
-  const unit = unitType === 'roll' ? 'ROLL' : 'MTR';
+  const unit =
+    itemType === 'PRODUCT' || itemType === 'OTHER'
+      ? 'PCS'
+      : unitType === 'roll'
+        ? 'ROLL'
+        : 'MTR';
+  const unitName = itemType === 'PRODUCT' || itemType === 'OTHER' ? 'Piece' : 'Meter';
   const pieceMeter = Math.max(0, toNumber(line.piece_meter || 1));
 
   return Item.create({
     item_code: itemCode,
     item_name: itemName,
     barcode,
+    color: String(line.color || '').trim(),
     hsn_code: String(line.hsn_code || '').trim(),
     description: String(line.description || itemName).trim(),
-    item_type: 'FABRIC',
+    item_type: itemType,
+    custom_product_name: String(line.custom_product_name || '').trim(),
     unit,
-    unit_name: unit,
+    unit_name: unitName,
     piece_meter: pieceMeter,
     purchase_price: purchasePrice,
     cost_per_qty: purchasePrice,
@@ -132,6 +141,9 @@ const applyPurchaseItemsToStock = async (items = [], direction = 1, purchaseMeta
       }
       if (salePrice > 0) {
         item.sale_price = salePrice;
+      }
+      if (String(latestLine.color || '').trim()) {
+        item.color = String(latestLine.color || '').trim();
       }
       item.last_purchase_id = String(purchaseMeta.id || '');
       item.last_purchase_no = String(purchaseMeta.purchase_no || '');

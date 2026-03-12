@@ -17,6 +17,7 @@ const purchaseItemSchema = new mongoose.Schema(
     barcode: { type: String, default: '' },
     itemName: { type: String, default: '' },
     code: { type: String, default: '' },
+    color: { type: String, default: '' },
     hsn_code: { type: String, default: '' },
     description: { type: String, default: '' },
     qty: { type: Number, default: 0 },

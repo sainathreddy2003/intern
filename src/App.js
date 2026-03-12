@@ -199,6 +199,27 @@ function App() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Prevent accidental value jumps while scrolling over date/number/select filter controls.
+    const onWheel = (event) => {
+      const active = document.activeElement;
+      if (!active) return;
+
+      const tag = active.tagName;
+      const type = String(active.getAttribute?.('type') || '').toLowerCase();
+      const isWheelSensitive =
+        tag === 'SELECT' || (tag === 'INPUT' && (type === 'number' || type === 'date'));
+
+      if (!isWheelSensitive) return;
+      if (event.target !== active && !active.contains?.(event.target)) return;
+
+      active.blur();
+    };
+
+    window.addEventListener('wheel', onWheel, { capture: true, passive: true });
+    return () => window.removeEventListener('wheel', onWheel, { capture: true });
+  }, []);
+
+  useEffect(() => {
     // Set up electron menu listeners if running in electron
     if (window.electronAPI) {
       const handleMenuAction = (event) => {

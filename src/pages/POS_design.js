@@ -54,6 +54,13 @@ const buildInvoiceNo = (date = new Date()) =>
     '0'
   )}${String(date.getSeconds()).padStart(2, '0')}${String(date.getMilliseconds()).padStart(3, '0')}`;
 
+const resolveUnitByItemType = (item = {}) => {
+  const itemType = String(item.item_type || item.itemType || '').trim().toUpperCase();
+  if (itemType === 'FABRIC') return 'Meter';
+  if (itemType === 'PRODUCT') return 'Piece';
+  return item.unit_name || item.unit || 'Meter';
+};
+
 const POS = () => {
   const ORANGE = '#ff9800';
   const GRID_BLUE = '#ff9800';
@@ -63,6 +70,8 @@ const POS = () => {
 
   const barcodeInputRef = useRef(null);
   const qtyInputRef = useRef(null);
+  const rateInputRef = useRef(null);
+  const taxInputRef = useRef(null);
 
   const [cart, setCart] = useState([]);
   const [paymentMode, setPaymentMode] = useState('CASH');
@@ -94,12 +103,18 @@ const POS = () => {
   const [catalogItems, setCatalogItems] = useState([]);
   const [itemsLoading, setItemsLoading] = useState(false);
   const [tabValue, setTabValue] = useState(0);
-  const [saleSource, setSaleSource] = useState('MANUAL');
+  const [saleSource, setSaleSource] = useState('DOMESTIC');
+  const [remarks, setRemarks] = useState('');
   const [historySource, setHistorySource] = useState('');
   const [historyStatus, setHistoryStatus] = useState('');
   const [historyQuery, setHistoryQuery] = useState('');
   const [historyDateFrom, setHistoryDateFrom] = useState('');
   const [historyDateTo, setHistoryDateTo] = useState('');
+  const [holdSource, setHoldSource] = useState('');
+  const [holdStatus, setHoldStatus] = useState('');
+  const [holdQuery, setHoldQuery] = useState('');
+  const [holdDateFrom, setHoldDateFrom] = useState('');
+  const [holdDateTo, setHoldDateTo] = useState('');
   const [salesHistory, setSalesHistory] = useState([]);
   const [settings, setSettings] = useState({});
   const [editingHoldId, setEditingHoldId] = useState('');
@@ -123,13 +138,74 @@ const POS = () => {
   const [editingLineId, setEditingLineId] = useState(null);
   const [editingRowData, setEditingRowData] = useState({});
   const [newCustomerDialog, setNewCustomerDialog] = useState(false);
+  const [viewBillDialog, setViewBillDialog] = useState({ open: false, bill: null });
+  const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
   const [newCustomerForm, setNewCustomerForm] = useState({
     customer_code: '',
     customer_name: '',
     mobile: '',
     address: '',
   });
-  const meterOptions = ['1', '3', '5', '10', 'Roll', 'Others'];
+  const meterOptions = ['1', '2', '5', '10', 'Roll', 'Others'];
+  const clearHistoryFilters = useCallback(() => {
+    setHistoryQuery('');
+    setHistoryStatus('');
+    setHistoryDateFrom('');
+    setHistoryDateTo('');
+    setHistorySource('');
+  }, []);
+  const clearHoldFilters = useCallback(() => {
+    setHoldQuery('');
+    setHoldStatus('');
+    setHoldDateFrom('');
+    setHoldDateTo('');
+    setHoldSource('');
+  }, []);
+
+  const focusNextInput = useCallback((currentElement) => {
+    if (!currentElement) return false;
+    const scope =
+      currentElement.closest('[data-enter-scope="sales-entry"]') || document;
+    const selectors = [
+      'input:not([type="hidden"]):not([disabled])',
+      'textarea:not([disabled])',
+      '[role="combobox"]:not([aria-disabled="true"])',
+      '[tabindex]:not([tabindex="-1"]):not([disabled])',
+      'button:not([disabled])',
+    ].join(',');
+
+    const candidates = Array.from(scope.querySelectorAll(selectors)).filter((el) => {
+      if (el.offsetParent === null) return false;
+      if (el.getAttribute('aria-hidden') === 'true') return false;
+      if (el.closest('[aria-hidden="true"]')) return false;
+      return true;
+    });
+
+    const currentIndex = candidates.indexOf(currentElement);
+    if (currentIndex < 0 || currentIndex + 1 >= candidates.length) return false;
+    const next = candidates[currentIndex + 1];
+    if (typeof next.focus === 'function') {
+      next.focus();
+      if (typeof next.select === 'function') next.select();
+      return true;
+    }
+    return false;
+  }, []);
+
+  const handleEnterToNext = useCallback(
+    async (event, action) => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof action === 'function') {
+        await action();
+      }
+      setTimeout(() => {
+        focusNextInput(event.target);
+      }, 0);
+    },
+    [focusNextInput]
+  );
 
   const refreshSalesHistory = useCallback(async () => {
     try {
@@ -164,7 +240,7 @@ const POS = () => {
           mrp: Number(item.selling_price ?? item.sale_price ?? 0),
           tax: Number(item.tax_percentage ?? item.tax ?? 0),
           stock: Number(item.current_stock ?? item.stock ?? 0),
-          unit: item.unit_name || item.unit || 'MTR',
+          unit: resolveUnitByItemType(item),
           fabricType: item.fabric_type || '',
           color: item.color || '',
           widthInch: Number(item.width_inch || 0),
@@ -203,8 +279,15 @@ const POS = () => {
         exact = rows.find(
           (c) =>
             String(c.customer_code || '').trim().toUpperCase() === customerId ||
-            String(c.customer_id || '').trim().toUpperCase() === customerId
+            String(c.customer_id || '').trim().toUpperCase() === customerId ||
+            String(c.mobile || '').trim() === customerId ||
+            String(c.customer_name || '').trim().toUpperCase() === customerId
         );
+        if (!exact) {
+          exact = rows.find((c) =>
+            String(c.customer_name || '').trim().toUpperCase().includes(customerId)
+          );
+        }
       }
 
       if (!exact) {
@@ -219,7 +302,7 @@ const POS = () => {
       }
       setBillingError('');
       setCustomerEntry({
-        customerId: String(exact.customer_code || customerId),
+        customerId: String(exact.customer_code || exact.customer_id || customerId),
         customerName: String(exact.customer_name || ''),
         mobile: String(exact.mobile || ''),
         address: String(exact.address || ''),
@@ -228,6 +311,47 @@ const POS = () => {
       setTimeout(() => barcodeInputRef.current?.focus(), 100);
     } catch (error) {
       setBillingError(error?.message || 'Failed to retrieve customer details');
+    }
+  };
+
+  const lookupCustomerByMobile = async (rawMobile = '') => {
+    const mobile = String(rawMobile || customerEntry.mobile || '').trim();
+    if (!mobile) return;
+
+    try {
+      const response = await customersAPI.getCustomers({ q: mobile, limit: 50 });
+      const rows = Array.isArray(response?.data)
+        ? response.data
+        : Array.isArray(response?.data?.data)
+          ? response.data.data
+          : [];
+
+      let exact = rows.find((c) => String(c.mobile || '').trim() === mobile) || null;
+      if (!exact) {
+        exact = rows.find((c) => String(c.mobile || '').trim().includes(mobile)) || null;
+      }
+
+      if (!exact) {
+        setCustomerEntry((prev) => ({
+          ...prev,
+          customerId: '',
+          customerName: '',
+          address: '',
+        }));
+        setBillingError('Customer not found for this phone number.');
+        return;
+      }
+
+      setBillingError('');
+      setCustomerEntry({
+        customerId: String(exact.customer_code || exact.customer_id || ''),
+        customerName: String(exact.customer_name || ''),
+        mobile: String(exact.mobile || mobile),
+        address: String(exact.address || ''),
+      });
+      setTimeout(() => barcodeInputRef.current?.focus(), 100);
+    } catch (error) {
+      setBillingError(error?.message || 'Failed to retrieve customer by phone number');
     }
   };
 
@@ -351,7 +475,7 @@ const POS = () => {
     mrp: Number(item.selling_price ?? item.sale_price ?? 0),
     tax: Number(item.tax_percentage ?? item.tax ?? 0),
     stock: Number(item.current_stock ?? item.stock ?? 0),
-    unit: item.unit_name || item.unit || 'MTR',
+    unit: resolveUnitByItemType(item),
     fabricType: item.fabric_type || '',
     color: item.color || '',
     widthInch: Number(item.width_inch || 0),
@@ -397,6 +521,19 @@ const POS = () => {
 
     if (!barcode) {
       setBarcodeOptions([]);
+      // Clearing barcode should clear dependent entry fields as well.
+      setFabricEntry((prev) => ({
+        ...prev,
+        barcode: '',
+        item_name: '',
+        meters: '1',
+        qty: '1',
+        rate: '',
+        tax: '',
+        discountPct: '0',
+        servicePct: '0',
+      }));
+      setBillingError('');
       return;
     }
 
@@ -411,8 +548,14 @@ const POS = () => {
       );
     });
 
+    const sortByName = (list = []) =>
+      [...list].sort((a, b) =>
+        String(a?.name || a?.item_name || '')
+          .localeCompare(String(b?.name || b?.item_name || ''), undefined, { sensitivity: 'base' })
+      );
+
     if (variants.length > 0) {
-      setBarcodeOptions(variants);
+      setBarcodeOptions(sortByName(variants));
     } else {
       // Try backend search
       try {
@@ -430,7 +573,7 @@ const POS = () => {
 
         if (backendVariants.length > 0) {
           const mappedVariants = backendVariants.map(item => mapBackendItemToCatalog(item, item.barcode));
-          setBarcodeOptions(mappedVariants);
+          setBarcodeOptions(sortByName(mappedVariants));
         } else {
           setBarcodeOptions([]);
         }
@@ -447,8 +590,11 @@ const POS = () => {
     const barcodeUpper = String(item.barcode || '').toUpperCase();
     if (barcodeUpper.includes('-1M')) {
       detectedMeter = '1';
+    } else if (barcodeUpper.includes('-2M')) {
+      detectedMeter = '2';
     } else if (barcodeUpper.includes('-3M')) {
-      detectedMeter = '3';
+      // Backward compatibility for old labels; map to 2-meter option.
+      detectedMeter = '2';
     } else if (barcodeUpper.includes('-5M')) {
       detectedMeter = '5';
     } else if (barcodeUpper.includes('-10M')) {
@@ -687,6 +833,8 @@ const POS = () => {
     setManualServiceCharge('');
     setManualRoundOff('');
     setManualSurchargeIncl('');
+    setRemarks('');
+    setSaleSource('DOMESTIC');
     setBillNoSeed(Date.now());
     setBillingError('');
     setEditingHoldId('');
@@ -858,7 +1006,7 @@ const POS = () => {
         mrp: Math.max(0, Number(line.mrp ?? line.rate ?? 0)),
         tax: Math.min(100, Math.max(0, Number(line.taxPct ?? line.tax ?? 0))),
         stock: Number(catalogMatch?.stock ?? line.stock ?? qty),
-        unit: catalogMatch?.unit || 'MTR',
+        unit: catalogMatch?.unit || 'Meter',
         fabricType: catalogMatch?.fabricType || '',
         color: catalogMatch?.color || '',
         widthInch: Number(catalogMatch?.widthInch || 0),
@@ -882,7 +1030,8 @@ const POS = () => {
         address: String(bill.customerAddress || ''),
       });
       setPaymentMode(String(bill.paymentMode || 'CASH').toUpperCase());
-      setSaleSource(String(bill.source || 'MANUAL').toUpperCase());
+      setSaleSource(String(bill.source || 'DOMESTIC').toUpperCase());
+      setRemarks(String(bill.remarks || ''));
       setBillDate(String(bill.billDate || '').slice(0, 10) || new Date().toISOString().slice(0, 10));
       setCashDiscountPercent(Number(bill.billDiscountPct || 0));
       setCouponDiscount(Number(bill.couponDiscount || 0));
@@ -963,7 +1112,8 @@ const POS = () => {
         address: String(bill.customerAddress || ''),
       });
       setPaymentMode(String(bill.paymentMode || 'CASH').toUpperCase());
-      setSaleSource(String(bill.source || 'MANUAL').toUpperCase());
+      setSaleSource(String(bill.source || 'DOMESTIC').toUpperCase());
+      setRemarks(String(bill.remarks || ''));
       setBillDate(String(bill.billDate || '').slice(0, 10) || new Date().toISOString().slice(0, 10));
       setCashDiscountPercent(Number(bill.billDiscountPct || 0));
       setCouponDiscount(Number(bill.couponDiscount || 0));
@@ -1049,6 +1199,7 @@ const POS = () => {
         paidAmount: paymentMode === 'CREDIT' ? 0 : Number(totals.net.toFixed(2)),
         dueAmount: paymentMode === 'CREDIT' ? Number(totals.net.toFixed(2)) : 0,
         source: saleSource,
+        remarks: String(remarks || '').trim(),
         billType: 'SALES',
         isHold: !!hold,
         items: totals.computed.map((x) => ({
@@ -1167,6 +1318,7 @@ const POS = () => {
       otherCharge,
       packingCharge,
       paymentMode,
+      remarks,
       refreshSalesHistory,
       saleSource,
       surchargePercent,
@@ -1188,10 +1340,14 @@ const POS = () => {
 
   const filteredHistory = useMemo(() => {
     const q = historyQuery.trim().toLowerCase();
+    const isHoldBill = (bill = {}) => Boolean(bill.isHold ?? bill.is_hold);
+    const billSource = (bill = {}) => String(bill.source || bill.sale_source || '').toUpperCase();
+    const billStatus = (bill = {}) => String(bill.paymentStatus || bill.payment_status || '').toUpperCase();
+    const billCreatedAt = (bill = {}) => bill.createdAt || bill.created_at || bill.billDate || '';
     return salesHistory
-      .filter((bill) => !bill.isHold)
-      .filter((bill) => (historySource ? bill.source === historySource : true))
-      .filter((bill) => (historyStatus ? bill.paymentStatus === historyStatus : true))
+      .filter((bill) => !isHoldBill(bill))
+      .filter((bill) => (historySource ? billSource(bill) === historySource : true))
+      .filter((bill) => (historyStatus ? billStatus(bill) === historyStatus : true))
       .filter((bill) => {
         if (!q) return true;
         const inInvoice = String(bill.invoiceNo || '').toLowerCase().includes(q);
@@ -1206,7 +1362,7 @@ const POS = () => {
       })
       .filter((bill) => {
         if (!historyDateFrom && !historyDateTo) return true;
-        const d = new Date(bill.createdAt);
+        const d = new Date(billCreatedAt(bill));
         const fromOk = historyDateFrom ? d >= new Date(`${historyDateFrom}T00:00:00`) : true;
         const toOk = historyDateTo ? d <= new Date(`${historyDateTo}T23:59:59`) : true;
         return fromOk && toOk;
@@ -1215,11 +1371,16 @@ const POS = () => {
   }, [salesHistory, historySource, historyStatus, historyQuery, historyDateFrom, historyDateTo]);
 
   const filteredHoldHistory = useMemo(() => {
-    const q = historyQuery.trim().toLowerCase();
+    const q = holdQuery.trim().toLowerCase();
+    const isHoldBill = (bill = {}) => Boolean(bill.isHold ?? bill.is_hold);
+    const billType = (bill = {}) => String(bill.billType || bill.bill_type || 'SALES').toUpperCase();
+    const billSource = (bill = {}) => String(bill.source || bill.sale_source || '').toUpperCase();
+    const billStatus = (bill = {}) => String(bill.paymentStatus || bill.payment_status || '').toUpperCase();
+    const billCreatedAt = (bill = {}) => bill.createdAt || bill.created_at || bill.billDate || '';
     return salesHistory
-      .filter((bill) => bill.isHold && String(bill.billType || 'SALES').toUpperCase() === 'SALES')
-      .filter((bill) => (historySource ? bill.source === historySource : true))
-      .filter((bill) => (historyStatus ? bill.paymentStatus === historyStatus : true))
+      .filter((bill) => isHoldBill(bill) && billType(bill) === 'SALES')
+      .filter((bill) => (holdSource ? billSource(bill) === holdSource : true))
+      .filter((bill) => (holdStatus ? billStatus(bill) === holdStatus : true))
       .filter((bill) => {
         if (!q) return true;
         const inInvoice = String(bill.invoiceNo || '').toLowerCase().includes(q);
@@ -1233,14 +1394,14 @@ const POS = () => {
         return inInvoice || inCustomer || inItems;
       })
       .filter((bill) => {
-        if (!historyDateFrom && !historyDateTo) return true;
-        const d = new Date(bill.createdAt);
-        const fromOk = historyDateFrom ? d >= new Date(`${historyDateFrom}T00:00:00`) : true;
-        const toOk = historyDateTo ? d <= new Date(`${historyDateTo}T23:59:59`) : true;
+        if (!holdDateFrom && !holdDateTo) return true;
+        const d = new Date(billCreatedAt(bill));
+        const fromOk = holdDateFrom ? d >= new Date(`${holdDateFrom}T00:00:00`) : true;
+        const toOk = holdDateTo ? d <= new Date(`${holdDateTo}T23:59:59`) : true;
         return fromOk && toOk;
       })
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  }, [salesHistory, historySource, historyStatus, historyQuery, historyDateFrom, historyDateTo]);
+  }, [salesHistory, holdSource, holdStatus, holdQuery, holdDateFrom, holdDateTo]);
 
   const historyStats = useMemo(() => {
     const salesOnly = filteredHistory.filter((x) => x.billType !== 'SALES_RETURN');
@@ -1254,6 +1415,16 @@ const POS = () => {
     ).size;
     return { totalRevenue, completedSales, pendingSales, uniqueCustomers };
   }, [filteredHistory]);
+
+  const requestSaveBill = useCallback(() => {
+    if (isSavingBill) return;
+    setSaveConfirmOpen(true);
+  }, [isSavingBill]);
+
+  const confirmSaveBill = useCallback(() => {
+    setSaveConfirmOpen(false);
+    saveBill(false);
+  }, [saveBill]);
 
   const generateSalePdf = (bill, mode = 'download') => {
     generateInvoicePDF(bill, settings, mode);
@@ -1409,7 +1580,8 @@ const POS = () => {
               label="Source"
               onChange={(e) => setSaleSource(e.target.value)}
             >
-              <MenuItem value="MANUAL">Manual</MenuItem>
+              <MenuItem value="DOMESTIC">Domestic</MenuItem>
+              <MenuItem value="OTHERS">Others</MenuItem>
               <MenuItem value="WEBSITE">Website</MenuItem>
               <MenuItem value="AMAZON">Amazon</MenuItem>
               <MenuItem value="FLIPKART">Flipkart</MenuItem>
@@ -1446,6 +1618,7 @@ const POS = () => {
 
       <Paper
         elevation={0}
+        data-enter-scope="sales-entry"
         sx={{
           p: 2,
           borderBottom: `1px solid ${GRID_BORDER}`,
@@ -1464,7 +1637,7 @@ const POS = () => {
                   value={customerEntry.customerId}
                   onChange={(e) => setCustomerEntry(p => ({ ...p, customerId: e.target.value.toUpperCase() }))}
                   onBlur={() => lookupCustomerById()}
-                  onKeyDown={(e) => e.key === 'Enter' && lookupCustomerById()}
+                  onKeyDown={(e) => handleEnterToNext(e, () => lookupCustomerById())}
                   placeholder="Scan/Type ID"
                 />
               </Grid>
@@ -1472,7 +1645,16 @@ const POS = () => {
                 <TextField fullWidth size="small" label="Customer Name" value={customerEntry.customerName} InputProps={{ readOnly: true }} />
               </Grid>
               <Grid item xs={12} md={2}>
-                <TextField fullWidth size="small" label="Mobile" value={customerEntry.mobile} InputProps={{ readOnly: true }} />
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Mobile"
+                  value={customerEntry.mobile}
+                  onChange={(e) => setCustomerEntry((p) => ({ ...p, mobile: e.target.value }))}
+                  onBlur={() => lookupCustomerByMobile()}
+                  onKeyDown={(e) => handleEnterToNext(e, () => lookupCustomerByMobile())}
+                  placeholder="Search by phone"
+                />
               </Grid>
               <Grid item xs={12} md={2}>
                 <TextField fullWidth size="small" label="Address" value={customerEntry.address} InputProps={{ readOnly: true }} />
@@ -1496,6 +1678,16 @@ const POS = () => {
                     New Customer
                   </Typography>
                 </Box>
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Remarks"
+                  value={remarks}
+                  onChange={(e) => setRemarks(e.target.value)}
+                  placeholder="Enter remarks"
+                />
               </Grid>
             </Grid>
           </Grid>
@@ -1549,6 +1741,7 @@ const POS = () => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
                       await handleBarcodeEnter();
+                      setTimeout(() => qtyInputRef.current?.focus(), 0);
                     }
                   }}
                 />
@@ -1566,6 +1759,7 @@ const POS = () => {
               label="Qty"
               value={fabricEntry.qty}
               onChange={(e) => handleFabricEntryChange('qty', e.target.value)}
+              onKeyDown={(e) => handleEnterToNext(e)}
               inputRef={qtyInputRef}
             />
           </Grid>
@@ -1575,12 +1769,28 @@ const POS = () => {
               size="small"
               label="Meters"
               value={fabricEntry.meters}
+              onKeyDown={(e) => handleEnterToNext(e)}
               InputProps={{ readOnly: true }}
               sx={{ bgcolor: '#f5f5f5' }}
             />
           </Grid>
           <Grid item xs={4} md={1}>
-            <TextField fullWidth size="small" label="Rate" value={fabricEntry.rate} InputProps={{ readOnly: true }} />
+            <TextField
+              fullWidth
+              size="small"
+              type="number"
+              label="Rate"
+              value={fabricEntry.rate}
+              onChange={(e) => handleFabricEntryChange('rate', e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter') return;
+                e.preventDefault();
+                e.stopPropagation();
+                setTimeout(() => taxInputRef.current?.focus(), 0);
+              }}
+              inputRef={rateInputRef}
+              inputProps={{ min: 0, step: 0.01 }}
+            />
           </Grid>
           <Grid item xs={4} md={1}>
             <TextField
@@ -1590,6 +1800,8 @@ const POS = () => {
               label="Tax %"
               value={fabricEntry.tax}
               onChange={(e) => handleFabricEntryChange('tax', e.target.value)}
+              onKeyDown={(e) => handleEnterToNext(e, saveFabricFromBilling)}
+              inputRef={taxInputRef}
               inputProps={{ min: 0, step: 0.01 }}
             />
           </Grid>
@@ -1860,6 +2072,7 @@ const POS = () => {
                   type="number"
                   value={manualTaxable}
                   onChange={e => setManualTaxable(e.target.value)}
+                  onKeyDown={(e) => handleEnterToNext(e)}
                   placeholder={totals.taxableAmount.toFixed(2)}
                   sx={{
                     '& input': { py: 0.5, textAlign: 'right' },
@@ -1882,6 +2095,7 @@ const POS = () => {
                   type="number"
                   value={manualTaxAmount}
                   onChange={e => setManualTaxAmount(e.target.value)}
+                  onKeyDown={(e) => handleEnterToNext(e)}
                   placeholder={totals.tax.toFixed(2)}
                   sx={{
                     '& input': { py: 0.5, textAlign: 'right' },
@@ -1904,6 +2118,7 @@ const POS = () => {
                   type="number"
                   value={manualServiceCharge}
                   onChange={e => setManualServiceCharge(e.target.value)}
+                  onKeyDown={(e) => handleEnterToNext(e)}
                   placeholder={totals.surcharge.toFixed(2)}
                   sx={{
                     '& input': { py: 0.5, textAlign: 'right' },
@@ -1920,19 +2135,19 @@ const POS = () => {
             <Grid container spacing={1} alignItems="center">
               <Grid item xs={6}><Typography variant="body2">Cash Disc %</Typography></Grid>
               <Grid item xs={6}>
-                <TextField size="small" type="number" value={cashDiscountPercent} onChange={e => setCashDiscountPercent(e.target.value)} sx={{ '& input': { py: 0.5, textAlign: 'right' } }} />
+                <TextField size="small" type="number" value={cashDiscountPercent} onChange={e => setCashDiscountPercent(e.target.value)} onKeyDown={(e) => handleEnterToNext(e)} sx={{ '& input': { py: 0.5, textAlign: 'right' } }} />
               </Grid>
             </Grid>
             <Grid container spacing={1} alignItems="center">
               <Grid item xs={6}><Typography variant="body2">Freight</Typography></Grid>
               <Grid item xs={6}>
-                <TextField size="small" type="number" value={freightCharge} onChange={e => setFreightCharge(e.target.value)} sx={{ '& input': { py: 0.5, textAlign: 'right' } }} />
+                <TextField size="small" type="number" value={freightCharge} onChange={e => setFreightCharge(e.target.value)} onKeyDown={(e) => handleEnterToNext(e)} sx={{ '& input': { py: 0.5, textAlign: 'right' } }} />
               </Grid>
             </Grid>
             <Grid container spacing={1} alignItems="center">
               <Grid item xs={6}><Typography variant="body2">Packing</Typography></Grid>
               <Grid item xs={6}>
-                <TextField size="small" type="number" value={packingCharge} onChange={e => setPackingCharge(e.target.value)} sx={{ '& input': { py: 0.5, textAlign: 'right' } }} />
+                <TextField size="small" type="number" value={packingCharge} onChange={e => setPackingCharge(e.target.value)} onKeyDown={(e) => handleEnterToNext(e)} sx={{ '& input': { py: 0.5, textAlign: 'right' } }} />
               </Grid>
             </Grid>
             <Divider />
@@ -1948,6 +2163,7 @@ const POS = () => {
                   type="number"
                   value={manualRoundOff}
                   onChange={e => setManualRoundOff(e.target.value)}
+                  onKeyDown={(e) => handleEnterToNext(e)}
                   placeholder={totals.roundOff.toFixed(2)}
                   sx={{
                     '& input': { py: 0.5, textAlign: 'right' },
@@ -1971,6 +2187,7 @@ const POS = () => {
                   type="number"
                   value={packingCharge}
                   onChange={e => setPackingCharge(e.target.value)}
+                  onKeyDown={(e) => handleEnterToNext(e)}
                   sx={{
                     '& input': { py: 0.5, textAlign: 'right' },
                     '& input[type=number]': { MozAppearance: 'textfield' },
@@ -1992,6 +2209,7 @@ const POS = () => {
                   type="number"
                   value={manualSurchargeIncl}
                   onChange={e => setManualSurchargeIncl(e.target.value)}
+                  onKeyDown={(e) => handleEnterToNext(e)}
                   placeholder={totals.taxInclusive.toFixed(2)}
                   sx={{
                     '& input': { py: 0.5, textAlign: 'right' },
@@ -2052,7 +2270,7 @@ const POS = () => {
             <Button
               variant="contained"
               size="large"
-              onClick={() => saveBill(false)}
+              onClick={requestSaveBill}
               startIcon={<Save />}
               disabled={isSavingBill}
               sx={{ bgcolor: '#4caf50', '&:hover': { bgcolor: '#388e3c' }, px: 5, fontSize: '1.2rem' }}
@@ -2160,14 +2378,19 @@ const POS = () => {
               <InputLabel>Platform</InputLabel>
               <Select value={historySource} label="Platform" onChange={(e) => setHistorySource(e.target.value)}>
                 <MenuItem value="">All</MenuItem>
-                <MenuItem value="MANUAL">Manual Billing</MenuItem>
                 <MenuItem value="DOMESTIC">Domestic Billing</MenuItem>
+                <MenuItem value="OTHERS">Others Billing</MenuItem>
                 <MenuItem value="WEBSITE">Website</MenuItem>
                 <MenuItem value="AMAZON">Amazon</MenuItem>
                 <MenuItem value="FLIPKART">Flipkart</MenuItem>
                 <MenuItem value="MEESHO">Meesho</MenuItem>
               </Select>
             </FormControl>
+          </Grid>
+          <Grid item xs={12} md={3}>
+            <Button fullWidth variant="outlined" size="small" onClick={clearHistoryFilters}>
+              Clear Filters
+            </Button>
           </Grid>
         </Grid>
       </Paper>
@@ -2185,13 +2408,14 @@ const POS = () => {
                 <TableCell>Payment Status</TableCell>
                 <TableCell>Date</TableCell>
                 <TableCell>Platform</TableCell>
+                <TableCell>Remarks</TableCell>
                 <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {filteredHistory.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center">No sales found</TableCell>
+                  <TableCell colSpan={10} align="center">No sales found</TableCell>
                 </TableRow>
               ) : (
                 filteredHistory.map((bill) => (
@@ -2220,6 +2444,7 @@ const POS = () => {
                     </TableCell>
                     <TableCell>{new Date(bill.createdAt).toLocaleString()}</TableCell>
                     <TableCell>{bill.source}</TableCell>
+                    <TableCell>{bill.remarks || '-'}</TableCell>
                     <TableCell>
                       <IconButton size="small" title="Edit" onClick={() => editSalesBill(bill)}>
                         <Edit fontSize="small" />
@@ -2232,15 +2457,8 @@ const POS = () => {
                       </IconButton>
                       <IconButton
                         size="small"
-                        onClick={() =>
-                          alert(
-                            `Invoice: ${bill.invoiceNo}\nCustomer: ${bill.customerName}\nMeters: ${Number(
-                              bill.totalMeters ?? bill.totalItems ?? 0
-                            ).toFixed(2)}\nAmount: ₹${Number(
-                              bill.netAmount || 0
-                            ).toFixed(2)}`
-                          )
-                        }
+                        title="View Invoice"
+                        onClick={() => generateSalePdf(bill, 'view')}
                       >
                         <Visibility fontSize="small" />
                       </IconButton>
@@ -2298,14 +2516,14 @@ const POS = () => {
               size="small"
               label="Search"
               placeholder="Search by customer, invoice, or fabric..."
-              value={historyQuery}
-              onChange={(e) => setHistoryQuery(e.target.value)}
+              value={holdQuery}
+              onChange={(e) => setHoldQuery(e.target.value)}
             />
           </Grid>
           <Grid item xs={12} md={3}>
             <FormControl fullWidth size="small">
               <InputLabel>Status</InputLabel>
-              <Select value={historyStatus} label="Status" onChange={(e) => setHistoryStatus(e.target.value)}>
+              <Select value={holdStatus} label="Status" onChange={(e) => setHoldStatus(e.target.value)}>
                 <MenuItem value="">All Status</MenuItem>
                 <MenuItem value="COMPLETED">Completed</MenuItem>
                 <MenuItem value="PARTIAL">Partial</MenuItem>
@@ -2319,8 +2537,8 @@ const POS = () => {
               size="small"
               type="date"
               label="From Date"
-              value={historyDateFrom}
-              onChange={(e) => setHistoryDateFrom(e.target.value)}
+              value={holdDateFrom}
+              onChange={(e) => setHoldDateFrom(e.target.value)}
               InputLabelProps={{ shrink: true }}
             />
           </Grid>
@@ -2330,24 +2548,29 @@ const POS = () => {
               size="small"
               type="date"
               label="To Date"
-              value={historyDateTo}
-              onChange={(e) => setHistoryDateTo(e.target.value)}
+              value={holdDateTo}
+              onChange={(e) => setHoldDateTo(e.target.value)}
               InputLabelProps={{ shrink: true }}
             />
           </Grid>
           <Grid item xs={12} md={3}>
             <FormControl fullWidth size="small">
               <InputLabel>Platform</InputLabel>
-              <Select value={historySource} label="Platform" onChange={(e) => setHistorySource(e.target.value)}>
+              <Select value={holdSource} label="Platform" onChange={(e) => setHoldSource(e.target.value)}>
                 <MenuItem value="">All</MenuItem>
-                <MenuItem value="MANUAL">Manual Billing</MenuItem>
                 <MenuItem value="DOMESTIC">Domestic Billing</MenuItem>
+                <MenuItem value="OTHERS">Others Billing</MenuItem>
                 <MenuItem value="WEBSITE">Website</MenuItem>
                 <MenuItem value="AMAZON">Amazon</MenuItem>
                 <MenuItem value="FLIPKART">Flipkart</MenuItem>
                 <MenuItem value="MEESHO">Meesho</MenuItem>
               </Select>
             </FormControl>
+          </Grid>
+          <Grid item xs={12} md={3}>
+            <Button fullWidth variant="outlined" size="small" onClick={clearHoldFilters}>
+              Clear Filters
+            </Button>
           </Grid>
         </Grid>
       </Paper>
@@ -2387,7 +2610,7 @@ const POS = () => {
                       <Chip size="small" color="warning" label={bill.paymentStatus || 'PENDING'} />
                     </TableCell>
                     <TableCell>{new Date(bill.createdAt).toLocaleString()}</TableCell>
-                    <TableCell>{bill.source || 'MANUAL'}</TableCell>
+                    <TableCell>{bill.source || 'DOMESTIC'}</TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', gap: 1 }}>
                         <Button
@@ -2524,7 +2747,7 @@ const POS = () => {
     const onKey = (e) => {
       if (e.key === 'F9') {
         e.preventDefault();
-        if (tabValue === 0) saveBill(false);
+        if (tabValue === 0) requestSaveBill();
       }
       if (e.key === 'F10') {
         e.preventDefault();
@@ -2538,7 +2761,7 @@ const POS = () => {
 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [clearBill, saveBill, tabValue]);
+  }, [clearBill, requestSaveBill, saveBill, tabValue]);
 
   return (
     <Box
@@ -2584,6 +2807,78 @@ const POS = () => {
         {tabValue === 2 && renderHoldTab()}
         {tabValue === 3 && renderSalesReturnTab()}
       </Box>
+
+      {/* New Customer Dialog */}
+      <Dialog
+        open={viewBillDialog.open}
+        onClose={() => setViewBillDialog({ open: false, bill: null })}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Invoice View</DialogTitle>
+        <DialogContent dividers>
+          {viewBillDialog.bill ? (
+            <Box>
+              <Typography variant="subtitle2">Invoice: {viewBillDialog.bill.invoiceNo || '-'}</Typography>
+              <Typography variant="body2">Customer: {viewBillDialog.bill.customerName || 'Cash Customer'}</Typography>
+              <Typography variant="body2">Date: {new Date(viewBillDialog.bill.createdAt).toLocaleString()}</Typography>
+              <Typography variant="body2" sx={{ mb: 1 }}>
+                Net Amount: ₹{Number(viewBillDialog.bill.netAmount || 0).toFixed(2)}
+              </Typography>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Item</TableCell>
+                    <TableCell>Code</TableCell>
+                    <TableCell align="right">Qty</TableCell>
+                    <TableCell align="right">Rate</TableCell>
+                    <TableCell align="right">Amount</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {(viewBillDialog.bill.items || []).map((line, idx) => (
+                    <TableRow key={`${line.id || line.code || idx}`}>
+                      <TableCell>{line.name || line.itemName || '-'}</TableCell>
+                      <TableCell>{line.code || line.barcode || '-'}</TableCell>
+                      <TableCell align="right">{Number(line.qty || 0).toFixed(2)}</TableCell>
+                      <TableCell align="right">{Number(line.rate || 0).toFixed(2)}</TableCell>
+                      <TableCell align="right">{Number(line.amount || 0).toFixed(2)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Box>
+          ) : null}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setViewBillDialog({ open: false, bill: null })}>Close</Button>
+          <Button
+            variant="outlined"
+            disabled={!viewBillDialog.bill}
+            onClick={() => viewBillDialog.bill && generateSalePdf(viewBillDialog.bill, 'print')}
+          >
+            Print
+          </Button>
+          <Button
+            variant="contained"
+            disabled={!viewBillDialog.bill}
+            onClick={() => viewBillDialog.bill && generateSalePdf(viewBillDialog.bill, 'download')}
+          >
+            Download PDF
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={saveConfirmOpen} onClose={() => setSaveConfirmOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Confirm Save</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">Do you want to save this bill now?</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSaveConfirmOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={confirmSaveBill}>Save</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* New Customer Dialog */}
       <Dialog open={newCustomerDialog} onClose={() => setNewCustomerDialog(false)} maxWidth="sm" fullWidth>

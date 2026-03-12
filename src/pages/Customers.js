@@ -166,6 +166,11 @@ const Customers = () => {
       return;
     }
 
+    if (!payload.mobile) {
+      toast.error('Mobile number is required');
+      return;
+    }
+
     if (editingId) {
       updateMutation.mutate({ id: editingId, payload });
       return;
@@ -280,6 +285,15 @@ const Customers = () => {
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
+                required
+                label="Mobile *"
+                value={form.mobile}
+                onChange={(e) => setForm((p) => ({ ...p, mobile: e.target.value }))}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
                 label={`${entityType} ID *`}
                 value={form.customer_code}
                 onChange={(e) => setForm((p) => ({ ...p, customer_code: e.target.value.toUpperCase() }))}
@@ -291,14 +305,6 @@ const Customers = () => {
                 label={`${entityType} Name *`}
                 value={form.customer_name}
                 onChange={(e) => setForm((p) => ({ ...p, customer_name: e.target.value }))}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Mobile"
-                value={form.mobile}
-                onChange={(e) => setForm((p) => ({ ...p, mobile: e.target.value }))}
               />
             </Grid>
             <Grid item xs={12} md={6}>
@@ -351,4 +357,3 @@ const Customers = () => {
 };
 
 export default Customers;
-

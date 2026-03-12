@@ -16,6 +16,7 @@ import Keyboard from '@mui/icons-material/Keyboard';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import Help from '@mui/icons-material/Help';
+import Close from '@mui/icons-material/Close';
 
 const KeyboardShortcuts = () => {
   const theme = useTheme();
@@ -25,8 +26,8 @@ const KeyboardShortcuts = () => {
   // Show/hide shortcuts help
   useEffect(() => {
     const handleKeyDown = (event) => {
-      // F1 or Ctrl+/ to toggle shortcuts help
-      if (event.key === 'F1' || (event.ctrlKey && event.key === '/')) {
+      // F1 to toggle shortcuts help
+      if (event.key === 'F1') {
         event.preventDefault();
         setIsVisible(!isVisible);
       }
@@ -46,46 +47,15 @@ const KeyboardShortcuts = () => {
       category: 'General',
       items: [
         { key: 'F1', description: 'Toggle keyboard shortcuts help' },
-        { key: 'Ctrl+/', description: 'Toggle keyboard shortcuts help' },
-        { key: 'Escape', 'description': 'Close dialogs / Clear cart' },
+        { key: 'Esc', description: 'Close popup/dialog' },
       ],
     },
     {
-      category: 'Sales Operations',
+      category: 'Billing',
       items: [
-        { key: 'Ctrl+B', description: 'New bill' },
-        { key: 'Ctrl+R', description: 'Reprint bill' },
-        { key: 'Ctrl+H', description: 'Hold bill' },
-        { key: 'Ctrl+S', description: 'Save bill' },
-        { key: 'Ctrl+P', description: 'Purchase entry' },
-        { key: 'Ctrl+E', description: 'Day end process' },
-      ],
-    },
-    {
-      category: 'Navigation',
-      items: [
-        { key: 'Alt+H', description: 'Go to Dashboard' },
-        { key: 'Alt+P', description: 'Go to Sales' },
-        { key: 'Alt+I', description: 'Go to Items Master' },
-        { key: 'Alt+C', description: 'Go to Customers' },
-        { key: 'Alt+S', description: 'Go to Suppliers' },
-        { key: 'Alt+R', description: 'Go to Reports' },
-      ],
-    },
-    {
-      category: 'Sync Operations',
-      items: [
-        { key: 'Ctrl+D', description: 'Download from server' },
-        { key: 'Ctrl+U', description: 'Upload to server' },
-        { key: 'Ctrl+F5', description: 'Force sync all data' },
-      ],
-    },
-    {
-      category: 'Search',
-      items: [
-        { key: 'Ctrl+F', description: 'Focus search field' },
-        { key: 'Ctrl+K', description: 'Quick search items' },
-        { key: 'Ctrl+Shift+F', description: 'Advanced search' },
+        { key: 'F9', description: 'Save bill' },
+        { key: 'F10', description: 'Hold bill' },
+        { key: 'F12', description: 'Clear bill' },
       ],
     },
   ];
@@ -149,6 +119,12 @@ const KeyboardShortcuts = () => {
             >
               {expanded ? <ExpandLess /> : <ExpandMore />}
             </IconButton>
+            <IconButton
+              size="small"
+              onClick={() => setIsVisible(false)}
+            >
+              <Close fontSize="small" />
+            </IconButton>
           </Box>
 
           {/* Quick shortcuts */}
@@ -158,9 +134,9 @@ const KeyboardShortcuts = () => {
             </Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
               <Chip label="F1: Help" size="small" variant="outlined" />
-              <Chip label="Ctrl+B: New Bill" size="small" variant="outlined" />
-              <Chip label="Ctrl+S: Save" size="small" variant="outlined" />
-              <Chip label="Ctrl+D: Download" size="small" variant="outlined" />
+              <Chip label="F9: Save" size="small" variant="outlined" />
+              <Chip label="F10: Hold" size="small" variant="outlined" />
+              <Chip label="F12: Clear" size="small" variant="outlined" />
             </Box>
           </Box>
 
@@ -210,7 +186,7 @@ const KeyboardShortcuts = () => {
           {/* Footer */}
           <Box sx={{ mt: 2, pt: 1, borderTop: 1, borderColor: 'divider' }}>
             <Typography variant="caption" color="text.secondary">
-              Press F1 or Ctrl+/ to toggle • Press Escape to close
+              Press F1 to toggle • Press Esc or X to close
             </Typography>
           </Box>
         </CardContent>

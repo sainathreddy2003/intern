@@ -48,6 +48,14 @@ import { itemsAPI, inventoryAPI, purchaseAPI } from '../services/api';
 import { toast } from 'react-hot-toast';
 
 const ItemsMaster = () => {
+  const resolveUnitByItemType = (itemType) => {
+    const normalized = String(itemType || '').toUpperCase();
+    if (normalized === 'FABRIC') return 'Meter';
+    if (normalized === 'PRODUCT') return 'Piece';
+    if (normalized === 'OTHER') return 'Piece';
+    return 'Piece';
+  };
+
   const getErrorMessage = (error, fallback) =>
     (typeof error === 'string' ? error : '') ||
     error?.message ||
@@ -87,10 +95,11 @@ const ItemsMaster = () => {
     item_code: '',
     barcode: '',
     description: '',
-    unit_name: '1',
+    unit_name: 'Piece',
     quantity: '',
     group_id: '',
     item_type: 'GENERAL',
+    custom_product_name: '',
     fabric_type: '',
     color: '',
     design: '',
@@ -219,10 +228,11 @@ const ItemsMaster = () => {
       item_code: '',
       barcode: '',
       description: '',
-      unit_name: '1',
+      unit_name: 'Piece',
       quantity: '',
       group_id: '',
       item_type: 'GENERAL',
+      custom_product_name: '',
       fabric_type: '',
       color: '',
       design: '',
@@ -328,6 +338,15 @@ const ItemsMaster = () => {
       }));
       return;
     }
+    if (key === 'item_type') {
+      const nextType = String(value || '').toUpperCase();
+      setNewItem((prev) => ({
+        ...prev,
+        item_type: nextType,
+        unit_name: resolveUnitByItemType(nextType),
+      }));
+      return;
+    }
     setNewItem((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -379,6 +398,10 @@ const ItemsMaster = () => {
       toast.error('Fabric name and barcode are required');
       return;
     }
+    if (String(newItem.item_type || '').toUpperCase() === 'OTHER' && !String(newItem.custom_product_name || '').trim()) {
+      toast.error('Enter Product Name is required for Product Type "Other"');
+      return;
+    }
 
     const payload = {
       ...newItem,
@@ -392,7 +415,8 @@ const ItemsMaster = () => {
       selling_price: Number(newItem.selling_price || 0),
       stock: 0,
       current_stock: 0,
-      unit_name: newItem.unit_name || '1',
+      unit_name: resolveUnitByItemType(newItem.item_type),
+      unit: resolveUnitByItemType(newItem.item_type),
       min_stock_level: Number(newItem.min_stock_level || 0),
       is_active: true,
     };
@@ -407,10 +431,11 @@ const ItemsMaster = () => {
       item_code: item.item_code || '',
       barcode: item.barcode || '',
       description: item.description || '',
-      unit_name: item.unit_name || item.unit || '1',
+      unit_name: item.unit_name || item.unit || resolveUnitByItemType(item.item_type || 'GENERAL'),
       quantity: String(item.current_stock ?? item.stock ?? ''),
       group_id: item.group_id || item.group_name || '',
       item_type: item.item_type || 'GENERAL',
+      custom_product_name: item.custom_product_name || '',
       fabric_type: item.fabric_type || '',
       color: item.color || '',
       design: item.design || '',
@@ -512,6 +537,10 @@ const ItemsMaster = () => {
       toast.error('Fabric name and barcode are required');
       return;
     }
+    if (String(newItem.item_type || '').toUpperCase() === 'OTHER' && !String(newItem.custom_product_name || '').trim()) {
+      toast.error('Enter Product Name is required for Product Type "Other"');
+      return;
+    }
 
     const payload = {
       ...newItem,
@@ -524,7 +553,8 @@ const ItemsMaster = () => {
       roll_length: Number(newItem.roll_length || 0),
       selling_price: Number(newItem.selling_price || 0),
       stock: Number(newItem.quantity || 0),
-      unit_name: newItem.unit_name || '1',
+      unit_name: resolveUnitByItemType(newItem.item_type),
+      unit: resolveUnitByItemType(newItem.item_type),
       min_stock_level: Number(newItem.min_stock_level || 0),
       is_active: true,
     };
@@ -593,6 +623,7 @@ const ItemsMaster = () => {
                 <TableCell sx={{ bgcolor: '#ff9800', color: '#fff', fontWeight: 600, py: 1.5, fontSize: '0.8125rem', textTransform: 'uppercase', borderBottom: '2px solid #e2e8f0' }}>Fabric</TableCell>
                 <TableCell sx={{ bgcolor: '#ff9800', color: '#fff', fontWeight: 600, py: 1.5, fontSize: '0.8125rem', textTransform: 'uppercase', borderBottom: '2px solid #e2e8f0' }}>Category</TableCell>
                 <TableCell sx={{ bgcolor: '#ff9800', color: '#fff', fontWeight: 600, py: 1.5, fontSize: '0.8125rem', textTransform: 'uppercase', borderBottom: '2px solid #e2e8f0' }}>HSN</TableCell>
+                <TableCell sx={{ bgcolor: '#ff9800', color: '#fff', fontWeight: 600, py: 1.5, fontSize: '0.8125rem', textTransform: 'uppercase', borderBottom: '2px solid #e2e8f0' }}>Color</TableCell>
                 <TableCell align="right" sx={{ bgcolor: '#ff9800', color: '#fff', fontWeight: 600, py: 1.5, fontSize: '0.8125rem', textTransform: 'uppercase', borderBottom: '2px solid #e2e8f0' }}>Piece/M</TableCell>
                 <TableCell align="right" sx={{ bgcolor: '#ff9800', color: '#fff', fontWeight: 600, py: 1.5, fontSize: '0.8125rem', textTransform: 'uppercase', borderBottom: '2px solid #e2e8f0' }}>Cost/Qty</TableCell>
                 <TableCell align="right" sx={{ bgcolor: '#ff9800', color: '#fff', fontWeight: 600, py: 1.5, fontSize: '0.8125rem', textTransform: 'uppercase', borderBottom: '2px solid #e2e8f0' }}>Cost</TableCell>
@@ -614,14 +645,14 @@ const ItemsMaster = () => {
             <TableBody>
               {itemsLoading ? (
                 <TableRow>
-                  <TableCell colSpan={18} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={19} align="center" sx={{ py: 4 }}>
                     <LinearProgress sx={{ mb: 2 }} />
                     <Typography color="text.secondary">Loading inventory...</Typography>
                   </TableCell>
                 </TableRow>
               ) : filteredInventoryItems.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={18} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={19} align="center" sx={{ py: 6 }}>
                     <Typography variant="h6" color="text.secondary">No fabrics found</Typography>
                   </TableCell>
                 </TableRow>
@@ -637,6 +668,7 @@ const ItemsMaster = () => {
                       <Chip label={item.item_type === 'FABRIC' || item.fabric_type ? 'FABRICS' : (item.group_name || item.group || item.item_type || '-')} size="small" sx={{ fontSize: '0.7rem', height: 20, bgcolor: '#e3f2fd', color: '#1976d2', fontWeight: 600 }} />
                     </TableCell>
                     <TableCell sx={{ py: 1.5, color: '#666', fontSize: '0.8125rem' }}>{item.hsn_code || '-'}</TableCell>
+                    <TableCell sx={{ py: 1.5, color: '#666', fontSize: '0.8125rem' }}>{item.color || '-'}</TableCell>
                     <TableCell align="right" sx={{ py: 1.5, fontSize: '0.8125rem' }}>{Number(item.piece_meter || 0).toFixed(2)}</TableCell>
                     <TableCell align="right" sx={{ py: 1.5, fontSize: '0.8125rem' }}>₹{Number(item.cost_per_qty || 0).toFixed(2)}</TableCell>
                     <TableCell align="right" sx={{ py: 1.5, fontSize: '0.8125rem' }}>₹{Number(item.cost || 0).toFixed(2)}</TableCell>
@@ -968,6 +1000,8 @@ const ItemsMaster = () => {
                 >
                   <MenuItem value="GENERAL">General</MenuItem>
                   <MenuItem value="FABRIC">Fabric</MenuItem>
+                  <MenuItem value="PRODUCT">Product</MenuItem>
+                  <MenuItem value="OTHER">Other</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -1001,30 +1035,23 @@ const ItemsMaster = () => {
             </Grid>
             <Grid item xs={12} md={6}>
               <FormControl fullWidth>
-                <InputLabel>Unit (meters)</InputLabel>
+                <InputLabel>Unit</InputLabel>
                 <Select
                   value={newItem.unit_name}
-                  label="Unit (meters)"
-                  onChange={(e) => handleNewItemChange('unit_name', e.target.value)}
+                  label="Unit"
+                  disabled
                 >
-                  <MenuItem value="1">1 meter</MenuItem>
-                  <MenuItem value="3">3 meters</MenuItem>
-                  <MenuItem value="5">5 meters</MenuItem>
-                  <MenuItem value="10">10 meters</MenuItem>
-                  <MenuItem value="Others">Others</MenuItem>
+                  <MenuItem value={resolveUnitByItemType(newItem.item_type)}>{resolveUnitByItemType(newItem.item_type)}</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
-            {newItem.unit_name === 'Others' && (
+            {newItem.item_type === 'OTHER' && (
               <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
-                  type="number"
-                  label="Custom Unit (meters)"
-                  value={newItem.unit_name === 'Others' ? '' : newItem.unit_name}
-                  onChange={(e) => handleNewItemChange('unit_name', e.target.value)}
-                  inputProps={{ min: 0, step: 0.1 }}
-                  placeholder="Enter custom meters"
+                  label="Enter Product Name"
+                  value={newItem.custom_product_name}
+                  onChange={(e) => handleNewItemChange('custom_product_name', e.target.value)}
                 />
               </Grid>
             )}
@@ -1153,9 +1180,29 @@ const ItemsMaster = () => {
                 >
                   <MenuItem value="GENERAL">General</MenuItem>
                   <MenuItem value="FABRIC">Fabric</MenuItem>
+                  <MenuItem value="PRODUCT">Product</MenuItem>
+                  <MenuItem value="OTHER">Other</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel>Unit</InputLabel>
+                <Select value={newItem.unit_name} label="Unit" disabled>
+                  <MenuItem value={resolveUnitByItemType(newItem.item_type)}>{resolveUnitByItemType(newItem.item_type)}</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            {newItem.item_type === 'OTHER' && (
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Enter Product Name"
+                  value={newItem.custom_product_name}
+                  onChange={(e) => handleNewItemChange('custom_product_name', e.target.value)}
+                />
+              </Grid>
+            )}
             <Grid item xs={12} md={6}>
               <FormControl fullWidth>
                 <InputLabel>Category</InputLabel>
