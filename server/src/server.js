@@ -45,8 +45,8 @@ const ensureDefaultClientSetup = async () => {
   const defaultDbName = getDefaultTenantDb();
   const legacyDbName =
     process.env.LEGACY_DATA_DB || extractDbNameFromMongoUri(process.env.MONGODB_URI);
-  const defaultDomainUser = (process.env.DEFAULT_DEMO_USER || 'demo@erp.demo').toLowerCase();
-  const defaultPassword = process.env.DEFAULT_DEMO_PASSWORD || 'away@123';
+  const defaultDomainUser = (process.env.DEFAULT_DEMO_USER || 'ramesh@demo').toLowerCase();
+  const defaultPassword = process.env.DEFAULT_DEMO_PASSWORD || 'Ramesh123';
   const legacyAdminUser = (process.env.DEFAULT_LEGACY_ADMIN_USER || 'admin').toLowerCase();
   const legacyAdminPassword = process.env.DEFAULT_LEGACY_ADMIN_PASSWORD || 'admin123';
 
@@ -54,7 +54,7 @@ const ensureDefaultClientSetup = async () => {
   if (
     legacyDbName &&
     legacyDbName !== defaultDbName &&
-    process.env.INIT_DEMO_FROM_LEGACY !== 'false'
+    process.env.INIT_DEMO_FROM_LEGACY === 'true'
   ) {
     const demoCount = await getCoreCollectionCounts(defaultDbName);
     const legacyCount = await getCoreCollectionCounts(legacyDbName);
@@ -70,7 +70,7 @@ const ensureDefaultClientSetup = async () => {
   let masterClient = await MasterClient.findOne({ domain_user: defaultDomainUser });
   if (!masterClient) {
     masterClient = await MasterClient.create({
-      client_name: process.env.DEFAULT_DEMO_CLIENT_NAME || 'Demo ERP',
+      client_name: process.env.DEFAULT_DEMO_CLIENT_NAME || 'Ramesh Exports',
       database_name: defaultDbName,
       domain_user: defaultDomainUser,
       password: defaultPassword,

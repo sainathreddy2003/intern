@@ -112,7 +112,7 @@ const login = async (req, res, next) => {
               name: legacyUser.name,
               email: legacyUser.email,
               role: legacyUser.role,
-              client_name: process.env.DEFAULT_DEMO_CLIENT_NAME || 'Demo ERP',
+              client_name: process.env.DEFAULT_DEMO_CLIENT_NAME || 'Ramesh Exports',
               dbName: defaultDbName,
             },
             token,
