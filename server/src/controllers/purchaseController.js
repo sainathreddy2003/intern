@@ -41,7 +41,8 @@ const resolveUniqueItemCode = async (preferred = '') => {
 
 const getLineQty = (line = {}) => {
   if (line.available_qty !== undefined && line.available_qty !== null && line.available_qty !== '') {
-    return Math.max(0, toNumber(line.available_qty));
+    const availableQty = Math.max(0, toNumber(line.available_qty));
+    if (availableQty > 0) return availableQty;
   }
   const qtyMeter = Math.max(0, toNumber(line.qty_meter));
   if (qtyMeter > 0) return qtyMeter;
