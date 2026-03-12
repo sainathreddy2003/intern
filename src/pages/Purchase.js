@@ -50,6 +50,8 @@ import { toast } from 'react-hot-toast';
 const PAYMENT_OPTIONS = ['CASH', 'UPI', 'CARD', 'BANK', 'CREDIT'];
 const PIECE_METER_OPTIONS = ['1', '2', '5', '10', 'ROLL'];
 const PURCHASE_GRID_COLUMN_DIVIDER = '1px solid #e2e8f0';
+const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024;
+const ATTACHMENT_ACCEPTED_TYPES = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
 
 const emptyPurchaseForm = {
   supplier_id: '',
@@ -316,6 +318,7 @@ const Purchase = () => {
   });
   const [paymentForm, setPaymentForm] = useState(emptyPaymentForm);
   const [returnForm, setReturnForm] = useState(emptyReturnForm);
+  const [selectedAttachment, setSelectedAttachment] = useState(null);
 
   const { data: suppliersData } = useQuery('suppliers-purchase', purchaseAPI.getSuppliers, {
     staleTime: 5 * 60 * 1000,
@@ -481,6 +484,7 @@ const Purchase = () => {
     setRows([createEmptyRow()]);
     setEditingHoldId('');
     setEditingHoldNo('');
+    setSelectedAttachment(null);
   }, []);
 
   const createOrderMutation = useMutation((payload) => purchaseAPI.createOrder(payload), {
@@ -677,6 +681,7 @@ const Purchase = () => {
       setRows(populatedRows);
       setEditingHoldId(id);
       setEditingHoldNo(String(order.purchase_no || '').trim());
+      setSelectedAttachment(null);
       setActiveTab(0);
       toast.success(`Loaded hold bill ${order.purchase_no || ''}`);
     },
@@ -738,6 +743,7 @@ const Purchase = () => {
       setRows(populatedRows);
       setEditingHoldId(id);
       setEditingHoldNo(String(sourceOrder.purchase_no || '').trim());
+      setSelectedAttachment(null);
       setActiveTab(0);
       toast.success(`Editing purchase bill ${sourceOrder.purchase_no || ''}`);
     },
@@ -1186,6 +1192,21 @@ const Purchase = () => {
         }),
       };
 
+      let requestPayload = payload;
+      if (selectedAttachment) {
+        const formData = new FormData();
+        Object.entries(payload).forEach(([key, value]) => {
+          if (value === undefined || value === null) return;
+          if (key === 'items') {
+            formData.append('items', JSON.stringify(value));
+            return;
+          }
+          formData.append(key, String(value));
+        });
+        formData.append('billAttachment', selectedAttachment);
+        requestPayload = formData;
+      }
+
       const mutationOptions =
         nextTabOnSuccess === null
           ? undefined
@@ -1196,12 +1217,12 @@ const Purchase = () => {
           };
 
       if (editingHoldId) {
-        updateOrderMutation.mutate({ id: editingHoldId, payload }, mutationOptions);
+        updateOrderMutation.mutate({ id: editingHoldId, payload: requestPayload }, mutationOptions);
       } else {
-        createOrderMutation.mutate(payload, mutationOptions);
+        createOrderMutation.mutate(requestPayload, mutationOptions);
       }
     },
-    [createOrderMutation, editingHoldId, purchaseForm, rows, updateOrderMutation]
+    [createOrderMutation, editingHoldId, purchaseForm, rows, selectedAttachment, updateOrderMutation]
   );
 
   const savePurchaseBill = useCallback(() => {
@@ -1549,6 +1570,40 @@ const Purchase = () => {
                 InputLabelProps={{ sx: { fontSize: '0.8rem' } }}
                 InputProps={{ sx: { fontSize: '0.8rem' } }}
               />
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <Button
+                fullWidth
+                component="label"
+                variant="outlined"
+                size="small"
+                sx={{ height: '100%', textTransform: 'none' }}
+              >
+                {selectedAttachment ? selectedAttachment.name : 'Upload Supplier Bill'}
+                <input
+                  hidden
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0] || null;
+                    if (!file) {
+                      setSelectedAttachment(null);
+                      return;
+                    }
+                    if (!ATTACHMENT_ACCEPTED_TYPES.includes(file.type)) {
+                      toast.error('Only PDF, JPG, JPEG, or PNG files are allowed');
+                      event.target.value = '';
+                      return;
+                    }
+                    if (file.size > MAX_ATTACHMENT_SIZE) {
+                      toast.error('Attachment size must be at most 5MB');
+                      event.target.value = '';
+                      return;
+                    }
+                    setSelectedAttachment(file);
+                  }}
+                />
+              </Button>
             </Grid>
           </Grid>
 
@@ -1922,6 +1977,33 @@ const Purchase = () => {
                         />
                       </TableCell>
                       <TableCell align="center">
+                        {(row.bill_attachment || row.billAttachment) && (
+                          <>
+                            <IconButton
+                              size="small"
+                              title="View Bill"
+                              component="a"
+                              href={`${String(process.env.REACT_APP_API_URL || '').replace(/\/api\/?$/, '')}/${String(
+                                row.bill_attachment || row.billAttachment
+                              ).replace(/^\/+/, '')}`}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              <Visibility fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              title="Download Bill"
+                              component="a"
+                              href={`${String(process.env.REACT_APP_API_URL || '').replace(/\/api\/?$/, '')}/${String(
+                                row.bill_attachment || row.billAttachment
+                              ).replace(/^\/+/, '')}`}
+                              download
+                            >
+                              <Download fontSize="small" />
+                            </IconButton>
+                          </>
+                        )}
                         <IconButton size="small" title="Edit" onClick={() => editPurchaseBill(row)}>
                           <Edit fontSize="small" />
                         </IconButton>

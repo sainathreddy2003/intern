@@ -140,9 +140,11 @@ export const salesAPI = {
 export const purchaseAPI = {
   getOrders: (params) => api.get('/purchase', { params }),
   getOrder: (id) => api.get(`/purchase/${id}`),
-  createOrder: (orderData) => api.post('/purchase', orderData),
+  createOrder: (orderData) =>
+    api.post('/purchase', orderData, orderData instanceof FormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined),
   addPayment: (id, paymentData) => api.put(`/purchase/${id}/payment`, paymentData),
-  updateOrder: (id, orderData) => api.put(`/purchase/${id}`, orderData),
+  updateOrder: (id, orderData) =>
+    api.put(`/purchase/${id}`, orderData, orderData instanceof FormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined),
   deleteOrder: (id) => api.delete(`/purchase/${id}`),
   getSuppliers: () => api.get('/purchase/suppliers/all'),
 };

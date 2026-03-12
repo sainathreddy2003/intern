@@ -60,6 +60,7 @@ const purchaseSchema = new mongoose.Schema(
     grand_total: { type: Number, default: 0 },
     paid_amount: { type: Number, default: 0 },
     due_amount: { type: Number, default: 0 },
+    bill_attachment: { type: String, default: '' },
     narration: { type: String, default: '' },
     items: { type: [purchaseItemSchema], default: [] },
     payments: { type: [purchasePaymentSchema], default: [] }
@@ -70,6 +71,7 @@ const purchaseSchema = new mongoose.Schema(
       virtuals: true,
       transform: (doc, ret) => {
         ret.purchase_id = ret._id.toString();
+        ret.billAttachment = ret.bill_attachment || '';
         delete ret._id;
         delete ret.__v;
       }

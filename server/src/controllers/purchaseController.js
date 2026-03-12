@@ -3,6 +3,7 @@ const Purchase = require('../models/Purchase');
 const Item = require('../models/Item');
 const { getPagination } = require('../utils/pagination');
 const mongoose = require('mongoose');
+const path = require('path');
 
 const normalizePurchasePayment = (row) => {
   const total = Math.max(0, Number(row.grand_total || 0));
@@ -201,7 +202,26 @@ const listPurchases = async (req, res, next) => {
 
 const createPurchase = async (req, res, next) => {
   try {
-    const payload = req.body || {};
+    const payload = { ...(req.body || {}) };
+    if (typeof payload.items === 'string') {
+      try {
+        payload.items = JSON.parse(payload.items);
+      } catch (_error) {
+        res.status(400);
+        throw new Error('Invalid items payload format');
+      }
+    }
+    if (!Array.isArray(payload.items)) {
+      payload.items = [];
+    }
+
+    if (req.file?.path) {
+      payload.bill_attachment = path
+        .relative(path.resolve(__dirname, '../..'), req.file.path)
+        .split(path.sep)
+        .join('/');
+    }
+
     const now = new Date();
     payload.purchase_no =
       payload.purchase_no ||
@@ -267,7 +287,21 @@ const updatePurchase = async (req, res, next) => {
       throw new Error('Purchase order not found');
     }
 
-    const payload = { ...req.body };
+    const payload = { ...(req.body || {}) };
+    if (typeof payload.items === 'string') {
+      try {
+        payload.items = JSON.parse(payload.items);
+      } catch (_error) {
+        res.status(400);
+        throw new Error('Invalid items payload format');
+      }
+    }
+    if (req.file?.path) {
+      payload.bill_attachment = path
+        .relative(path.resolve(__dirname, '../..'), req.file.path)
+        .split(path.sep)
+        .join('/');
+    }
     if (payload.grand_total !== undefined || payload.paid_amount !== undefined) {
       const merged = {
         grand_total: payload.grand_total !== undefined ? payload.grand_total : existing.grand_total,

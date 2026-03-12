@@ -72,6 +72,7 @@ app.use('/api/employees', employeesRoutes);
 app.use('/api/payroll', payrollRoutes);
 app.use('/api/warehouse', warehousesRoutes);
 app.use('/api/returns', returnRoutes);
+app.use('/uploads', express.static(path.resolve(__dirname, '../uploads')));
 
 const clientBuildPath = path.resolve(__dirname, '../../build');
 app.use(express.static(clientBuildPath));
