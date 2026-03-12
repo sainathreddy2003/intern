@@ -96,6 +96,9 @@ const login = async (req, res, next) => {
     const defaultDbName = getDefaultTenantDb();
     const loginAliases = [loginId];
     if (!loginId.includes('@')) loginAliases.push(`${loginId}@demo`);
+    const isDefaultDemoLogin =
+      loginAliases.includes(defaultDomainUser) ||
+      loginAliases.includes(String(defaultDomainUser || '').split('@')[0]);
 
     let masterClient = await MasterClient.findOne({
       domain_user: { $in: loginAliases },
@@ -103,10 +106,6 @@ const login = async (req, res, next) => {
     if (!masterClient && isDefaultDemoLogin) {
       masterClient = await MasterClient.findOne({ database_name: defaultDbName });
     }
-
-    const isDefaultDemoLogin =
-      loginAliases.includes(defaultDomainUser) ||
-      loginAliases.includes(String(defaultDomainUser || '').split('@')[0]);
 
     if (!masterClient && isDefaultDemoLogin && password === defaultPassword) {
       masterClient = await MasterClient.findOne({ database_name: defaultDbName });
