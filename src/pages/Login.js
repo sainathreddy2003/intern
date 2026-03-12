@@ -178,7 +178,7 @@ const Login = () => {
           <Box sx={{ position: 'relative', zIndex: 1 }}>
             <Store sx={{ fontSize: 64, mb: 3 }} />
             <Typography variant="h3" component="h1" gutterBottom sx={{ fontWeight: 900, letterSpacing: 1, textShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
-              Ramesh Exports
+              EVAI Technologies
             </Typography>
             <Typography variant="h6" sx={{ fontWeight: 500, mb: 2, opacity: 0.9 }}>
               Retail ERP System

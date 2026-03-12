@@ -65,17 +65,43 @@ const login = async (req, res, next) => {
     }
 
     const loginId = normalizeLogin(email);
-    const masterClient = await MasterClient.findOne({
-      domain_user: loginId,
+    const defaultDomainUser = (process.env.DEFAULT_DEMO_USER || 'ramesh@demo').toLowerCase();
+    const defaultPassword = process.env.DEFAULT_DEMO_PASSWORD || 'Ramesh123';
+    const defaultDbName = getDefaultTenantDb();
+    const loginAliases = [loginId];
+    if (!loginId.includes('@')) loginAliases.push(`${loginId}@demo`);
+
+    let masterClient = await MasterClient.findOne({
+      domain_user: { $in: loginAliases },
       status: 'active',
     });
+
+    const isDefaultDemoLogin =
+      loginAliases.includes(defaultDomainUser) ||
+      loginAliases.includes(String(defaultDomainUser || '').split('@')[0]);
+
+    if (!masterClient && isDefaultDemoLogin && password === defaultPassword) {
+      masterClient = await MasterClient.create({
+        client_name: process.env.DEFAULT_DEMO_CLIENT_NAME || 'Ramesh Exports',
+        database_name: defaultDbName,
+        domain_user: defaultDomainUser,
+        password: defaultPassword,
+        status: 'active',
+      });
+    }
+
+    if (masterClient && isDefaultDemoLogin && password === defaultPassword) {
+      const isMasterPasswordValid = await masterClient.matchPassword(password);
+      if (!isMasterPasswordValid) {
+        masterClient.password = defaultPassword;
+        await masterClient.save();
+      }
+    }
 
     // Backward-compatible default login support: admin/admin123
     if (!masterClient) {
       const legacyAdminUser = (process.env.DEFAULT_LEGACY_ADMIN_USER || 'admin').toLowerCase();
       const legacyAdminPassword = process.env.DEFAULT_LEGACY_ADMIN_PASSWORD || 'admin123';
-      const defaultDbName = getDefaultTenantDb();
-
       if (loginId === legacyAdminUser && password === legacyAdminPassword) {
         const legacyUser = await runWithTenant(defaultDbName, async () => {
           let tenantUser = await User.findOne({ email: legacyAdminUser });
@@ -122,7 +148,7 @@ const login = async (req, res, next) => {
       }
 
       res.status(401);
-      throw new Error('Invalid credentials or inactive client');
+      throw new Error('Invalid credentials');
     }
 
     const isMasterPasswordValid = await masterClient.matchPassword(password);
@@ -135,14 +161,14 @@ const login = async (req, res, next) => {
 
     const user = await runWithTenant(dbName, async () => {
       let tenantUser = await User.findOne({
-        $or: [{ email: loginId }, { username: email }],
+        $or: [{ email: loginId }, { username: email }, { email: masterClient.domain_user }],
       });
 
       if (!tenantUser) {
         tenantUser = await User.create({
           name: `${masterClient.client_name} Admin`,
-          username: loginId,
-          email: loginId,
+          username: masterClient.domain_user,
+          email: masterClient.domain_user,
           password,
           role: 'admin',
         });
