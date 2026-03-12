@@ -54,14 +54,7 @@ const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024;
 const ATTACHMENT_ACCEPTED_TYPES = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
 const getApiRootUrl = () => {
   const configured = String(process.env.REACT_APP_API_URL || '').trim();
-  if (configured) return configured.replace(/\/api\/?$/, '');
-  if (typeof window !== 'undefined') {
-    const host = window.location.hostname;
-    if (host === 'localhost' || host === '127.0.0.1' || host === '::1') {
-      return 'http://localhost:5002';
-    }
-  }
-  return '';
+  return configured.replace(/\/api\/?$/, '');
 };
 
 const emptyPurchaseForm = {
@@ -345,31 +338,32 @@ const Purchase = () => {
         search: filters.search,
         supplierId: filters.supplierId,
         paymentStatus: filters.paymentStatus,
-        status: 'ACTIVE',
         fromDate: filters.fromDate,
         toDate: filters.toDate,
       }),
-    { staleTime: 60 * 1000 }
+    {
+      staleTime: 60 * 1000,
+      onError: (error) => {
+        toast.error(error?.message || 'Failed to load purchase history');
+      },
+    }
   );
-
-  const purchaseOrders = Array.isArray(ordersData?.data?.orders) ? ordersData.data.orders : [];
-
-  const { data: holdOrdersData, isLoading: holdOrdersLoading } = useQuery(
-    ['purchase-hold-orders', filters],
-    () =>
-      purchaseAPI.getOrders({
-        limit: 500,
-        search: filters.search,
-        supplierId: filters.supplierId,
-        paymentStatus: filters.paymentStatus,
-        status: 'HOLD',
-        fromDate: filters.fromDate,
-        toDate: filters.toDate,
-      }),
-    { staleTime: 60 * 1000 }
+  const allOrdersRaw = Array.isArray(ordersData?.data?.orders)
+    ? ordersData.data.orders
+    : Array.isArray(ordersData?.data?.data?.orders)
+      ? ordersData.data.data.orders
+      : Array.isArray(ordersData?.orders)
+        ? ordersData.orders
+        : Array.isArray(ordersData?.data)
+          ? ordersData.data
+          : [];
+  const purchaseOrders = allOrdersRaw.filter(
+    (row) => String(row?.status || '').trim().toUpperCase() !== 'HOLD'
   );
-
-  const holdOrders = Array.isArray(holdOrdersData?.data?.orders) ? holdOrdersData.data.orders : [];
+  const holdOrders = allOrdersRaw.filter(
+    (row) => String(row?.status || '').trim().toUpperCase() === 'HOLD'
+  );
+  const holdOrdersLoading = ordersLoading;
 
   const latestPurchaseContextByCode = useMemo(() => {
     const map = new Map();
@@ -500,8 +494,8 @@ const Purchase = () => {
   }, []);
 
   const createOrderMutation = useMutation((payload) => purchaseAPI.createOrder(payload), {
-    onSuccess: (_response, payload) => {
-      const billStatus = String(payload?.status || 'ACTIVE').toUpperCase();
+    onSuccess: (response) => {
+      const billStatus = String(response?.data?.status || 'ACTIVE').toUpperCase();
       toast.success(billStatus === 'HOLD' ? 'Purchase bill held' : 'Purchase bill saved');
       clearPurchaseBill();
       queryClient.invalidateQueries('purchase-orders');
@@ -511,8 +505,8 @@ const Purchase = () => {
   });
 
   const updateOrderMutation = useMutation(({ id, payload }) => purchaseAPI.updateOrder(id, payload), {
-    onSuccess: (_response, variables) => {
-      const billStatus = String(variables?.payload?.status || 'ACTIVE').toUpperCase();
+    onSuccess: (response) => {
+      const billStatus = String(response?.data?.status || 'ACTIVE').toUpperCase();
       toast.success(billStatus === 'HOLD' ? 'Purchase hold updated' : 'Purchase bill saved');
       clearPurchaseBill();
       queryClient.invalidateQueries('purchase-orders');
@@ -1931,6 +1925,11 @@ const Purchase = () => {
                 </Select>
               </FormControl>
             </Grid>
+            <Grid item xs={12} md={2}>
+              <Button fullWidth variant="outlined" size="small" onClick={resetFilters}>
+                Clear Filters
+              </Button>
+            </Grid>
           </Grid>
 
           <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 520 }}>
@@ -1947,19 +1946,20 @@ const Purchase = () => {
                   <TableCell sx={{ bgcolor: '#ff9800', color: '#fff', fontWeight: 'bold' }} align="right">Paid</TableCell>
                   <TableCell sx={{ bgcolor: '#ff9800', color: '#fff', fontWeight: 'bold' }} align="right">Due</TableCell>
                   <TableCell sx={{ bgcolor: '#ff9800', color: '#fff', fontWeight: 'bold' }}>Payment Status</TableCell>
+                  <TableCell sx={{ bgcolor: '#ff9800', color: '#fff', fontWeight: 'bold' }} align="center">Supplier Bill</TableCell>
                   <TableCell sx={{ bgcolor: '#ff9800', color: '#fff', fontWeight: 'bold' }} align="center">Action</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {ordersLoading ? (
                   <TableRow>
-                    <TableCell colSpan={11} align="center">
+                    <TableCell colSpan={12} align="center">
                       Loading...
                     </TableCell>
                   </TableRow>
                 ) : purchaseOrders.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={11} align="center">
+                    <TableCell colSpan={12} align="center">
                       No purchase bills found
                     </TableCell>
                   </TableRow>
@@ -1989,11 +1989,11 @@ const Purchase = () => {
                         />
                       </TableCell>
                       <TableCell align="center">
-                        {(row.bill_attachment || row.billAttachment) && (
+                        {(row.bill_attachment || row.billAttachment) ? (
                           <>
                             <IconButton
                               size="small"
-                              title="View Bill"
+                              title="View Supplier Bill"
                               component="a"
                               href={`${uploadBaseUrl}/${String(
                                 row.bill_attachment || row.billAttachment
@@ -2005,7 +2005,7 @@ const Purchase = () => {
                             </IconButton>
                             <IconButton
                               size="small"
-                              title="Download Bill"
+                              title="Download Supplier Bill"
                               component="a"
                               href={`${uploadBaseUrl}/${String(
                                 row.bill_attachment || row.billAttachment
@@ -2015,7 +2015,11 @@ const Purchase = () => {
                               <Download fontSize="small" />
                             </IconButton>
                           </>
+                        ) : (
+                          '-'
                         )}
+                      </TableCell>
+                      <TableCell align="center">
                         <IconButton size="small" title="Edit" onClick={() => editPurchaseBill(row)}>
                           <Edit fontSize="small" />
                         </IconButton>
@@ -2136,6 +2140,11 @@ const Purchase = () => {
                   <MenuItem value="PAID">Paid</MenuItem>
                 </Select>
               </FormControl>
+            </Grid>
+            <Grid item xs={12} md={2}>
+              <Button fullWidth variant="outlined" size="small" onClick={resetFilters}>
+                Clear Filters
+              </Button>
             </Grid>
           </Grid>
 
@@ -2437,3 +2446,12 @@ const Purchase = () => {
 };
 
 export default Purchase;
+  const resetFilters = useCallback(() => {
+    setFilters({
+      search: '',
+      supplierId: '',
+      paymentStatus: '',
+      fromDate: '',
+      toDate: '',
+    });
+  }, []);
