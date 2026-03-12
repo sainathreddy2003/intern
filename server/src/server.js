@@ -41,6 +41,31 @@ const getCoreCollectionCounts = async (dbName) => {
   return total;
 };
 
+const clearCoreCollections = async (dbName) => {
+  const conn = await getTenantConnection(dbName);
+  const collections = [
+    'items',
+    'customers',
+    'suppliers',
+    'sales',
+    'purchases',
+    'expenses',
+    'warehouses',
+    'returns',
+    'employees',
+    'payrolls',
+    'cashflows',
+    'budgets',
+    'budgetperiods',
+  ];
+
+  for (const name of collections) {
+    const exists = await conn.db.listCollections({ name }).toArray();
+    if (!exists.length) continue;
+    await conn.db.collection(name).deleteMany({});
+  }
+};
+
 const ensureDefaultClientSetup = async () => {
   const defaultDbName = getDefaultTenantDb();
   const legacyDbName =
@@ -49,6 +74,11 @@ const ensureDefaultClientSetup = async () => {
   const defaultPassword = process.env.DEFAULT_DEMO_PASSWORD || 'Ramesh123';
   const legacyAdminUser = (process.env.DEFAULT_LEGACY_ADMIN_USER || 'admin').toLowerCase();
   const legacyAdminPassword = process.env.DEFAULT_LEGACY_ADMIN_PASSWORD || 'admin123';
+
+  if (process.env.CLEAN_DEMO_DATA_ON_BOOT === 'true') {
+    await clearCoreCollections(defaultDbName);
+    console.log(`Core business data cleared for tenant DB: ${defaultDbName}`);
+  }
 
   // One-time data carry-forward: move old single-db data into demo tenant if demo is empty.
   if (
