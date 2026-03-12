@@ -52,6 +52,17 @@ const PIECE_METER_OPTIONS = ['1', '2', '5', '10', 'ROLL'];
 const PURCHASE_GRID_COLUMN_DIVIDER = '1px solid #e2e8f0';
 const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024;
 const ATTACHMENT_ACCEPTED_TYPES = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+const getApiRootUrl = () => {
+  const configured = String(process.env.REACT_APP_API_URL || '').trim();
+  if (configured) return configured.replace(/\/api\/?$/, '');
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1' || host === '::1') {
+      return 'http://localhost:5002';
+    }
+  }
+  return '';
+};
 
 const emptyPurchaseForm = {
   supplier_id: '',
@@ -319,6 +330,7 @@ const Purchase = () => {
   const [paymentForm, setPaymentForm] = useState(emptyPaymentForm);
   const [returnForm, setReturnForm] = useState(emptyReturnForm);
   const [selectedAttachment, setSelectedAttachment] = useState(null);
+  const uploadBaseUrl = useMemo(() => getApiRootUrl(), []);
 
   const { data: suppliersData } = useQuery('suppliers-purchase', purchaseAPI.getSuppliers, {
     staleTime: 5 * 60 * 1000,
@@ -1983,7 +1995,7 @@ const Purchase = () => {
                               size="small"
                               title="View Bill"
                               component="a"
-                              href={`${String(process.env.REACT_APP_API_URL || '').replace(/\/api\/?$/, '')}/${String(
+                              href={`${uploadBaseUrl}/${String(
                                 row.bill_attachment || row.billAttachment
                               ).replace(/^\/+/, '')}`}
                               target="_blank"
@@ -1995,7 +2007,7 @@ const Purchase = () => {
                               size="small"
                               title="Download Bill"
                               component="a"
-                              href={`${String(process.env.REACT_APP_API_URL || '').replace(/\/api\/?$/, '')}/${String(
+                              href={`${uploadBaseUrl}/${String(
                                 row.bill_attachment || row.billAttachment
                               ).replace(/^\/+/, '')}`}
                               download
