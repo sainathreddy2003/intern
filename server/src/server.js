@@ -69,6 +69,9 @@ const ensureDefaultClientSetup = async () => {
 
   let masterClient = await MasterClient.findOne({ domain_user: defaultDomainUser });
   if (!masterClient) {
+    masterClient = await MasterClient.findOne({ database_name: defaultDbName });
+  }
+  if (!masterClient) {
     masterClient = await MasterClient.create({
       client_name: process.env.DEFAULT_DEMO_CLIENT_NAME || 'Ramesh Exports',
       database_name: defaultDbName,
@@ -80,6 +83,23 @@ const ensureDefaultClientSetup = async () => {
     console.log(
       `Default master client created: domain_user=${masterClient.domain_user}, database=${masterClient.database_name}`
     );
+  } else {
+    let shouldSave = false;
+    if (String(masterClient.domain_user || '').toLowerCase() !== defaultDomainUser) {
+      masterClient.domain_user = defaultDomainUser;
+      shouldSave = true;
+    }
+    if (String(masterClient.database_name || '').toLowerCase() !== defaultDbName) {
+      masterClient.database_name = defaultDbName;
+      shouldSave = true;
+    }
+    if (String(masterClient.status || '').toLowerCase() !== 'active') {
+      masterClient.status = 'active';
+      shouldSave = true;
+    }
+    if (shouldSave) {
+      await masterClient.save();
+    }
   }
 
   await runWithTenant(masterClient.database_name, async () => {
