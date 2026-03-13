@@ -44,6 +44,8 @@ import Delete from '@mui/icons-material/Delete';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import { useLocation } from 'react-router-dom';
 import { format } from 'date-fns';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { itemsAPI, purchaseAPI, suppliersAPI } from '../services/api';
 import { toast } from 'react-hot-toast';
 
@@ -816,7 +818,102 @@ const Purchase = () => {
   }, [clearPurchaseBill, location.search]);
 
   const generatePurchasePdf = (order) => {
-    alert(`PDF generation for Purchase Order ${order.purchase_no || ''} - Feature coming soon!`);
+    try {
+      const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 36;
+      const purchaseNo = String(order?.purchase_no || '').trim() || '-';
+      const invoiceNo = String(order?.invoice_number || '').trim() || '-';
+      const supplierName = String(order?.supplier_name || '').trim() || '-';
+      const supplierCode = String(order?.supplier_code || '').trim() || '-';
+      const purchaseDate = safeDate(order?.purchase_date);
+      const paymentMode = String(order?.payment_mode || '-').toUpperCase();
+      const paymentStatus = String(order?.payment_status || '-').toUpperCase();
+      const narration = String(order?.narration || '').trim();
+      const rowsData = Array.isArray(order?.items) ? order.items : [];
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(18);
+      doc.text('Purchase Order', margin, 44);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Generated: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 44, {
+        align: 'right',
+      });
+
+      doc.setDrawColor(230, 230, 230);
+      doc.line(margin, 52, pageWidth - margin, 52);
+
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`PO No: ${purchaseNo}`, margin, 76);
+      doc.text(`Invoice No: ${invoiceNo}`, margin, 94);
+      doc.text(`Date: ${purchaseDate}`, margin, 112);
+
+      doc.text(`Supplier: ${supplierName}`, pageWidth / 2, 76);
+      doc.text(`Supplier Code: ${supplierCode}`, pageWidth / 2, 94);
+      doc.text(`Payment: ${paymentMode} (${paymentStatus})`, pageWidth / 2, 112);
+
+      const body = rowsData.map((item, idx) => {
+        const qty = toNumber(item?.qty);
+        const cost = toNumber(item?.cost);
+        const discount = toNumber(item?.discount_amount ?? item?.discountAmount);
+        const tax = toNumber(item?.tax_amount ?? item?.taxAmount);
+        const net = toNumber((item?.net_amount ?? item?.netAmount) || qty * cost - discount + tax);
+
+        return [
+          String(idx + 1),
+          String(item?.code || item?.item_code || item?.barcode || '-'),
+          String(item?.description || item?.item_name || '-'),
+          toFixed2(qty),
+          toFixed2(cost),
+          toFixed2(discount),
+          toFixed2(tax),
+          toFixed2(net),
+        ];
+      });
+
+      autoTable(doc, {
+        startY: 132,
+        margin: { left: margin, right: margin },
+        head: [['#', 'Code', 'Description', 'Qty', 'Cost', 'Discount', 'Tax', 'Net']],
+        body: body.length ? body : [['-', '-', 'No items', '-', '-', '-', '-', '-']],
+        styles: { fontSize: 9, cellPadding: 5, valign: 'middle' },
+        headStyles: { fillColor: [245, 138, 7], textColor: [255, 255, 255] },
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 24 },
+          3: { halign: 'right', cellWidth: 52 },
+          4: { halign: 'right', cellWidth: 58 },
+          5: { halign: 'right', cellWidth: 64 },
+          6: { halign: 'right', cellWidth: 48 },
+          7: { halign: 'right', cellWidth: 58 },
+        },
+      });
+
+      const finalY = doc.lastAutoTable?.finalY || 132;
+      const total = toNumber(order?.grand_total);
+      const paid = toNumber(order?.paid_amount);
+      const due = toNumber(order?.due_amount);
+
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Grand Total: ${money(total)}`, pageWidth - margin, finalY + 24, { align: 'right' });
+      doc.text(`Paid: ${money(paid)}`, pageWidth - margin, finalY + 42, { align: 'right' });
+      doc.text(`Due: ${money(due)}`, pageWidth - margin, finalY + 60, { align: 'right' });
+
+      if (narration) {
+        doc.setFont('helvetica', 'bold');
+        doc.text('Notes:', margin, finalY + 42);
+        doc.setFont('helvetica', 'normal');
+        doc.text(narration, margin + 40, finalY + 42, {
+          maxWidth: pageWidth - margin * 2 - 120,
+        });
+      }
+
+      doc.save(`${purchaseNo || 'purchase-order'}.pdf`);
+    } catch (error) {
+      toast.error(error?.message || 'Failed to generate purchase PDF');
+    }
   };
 
   const retrieveReturnOrder = async () => {
