@@ -827,7 +827,7 @@ const Purchase = () => {
     }
   }, [clearPurchaseBill, location.search]);
 
-  const generatePurchasePdf = (order) => {
+  const generatePurchasePdf = (order, mode = 'download') => {
     try {
       const doc = new jsPDF({ unit: 'pt', format: 'a4' });
       const pageWidth = doc.internal.pageSize.getWidth();
@@ -920,7 +920,12 @@ const Purchase = () => {
         });
       }
 
-      doc.save(`${purchaseNo || 'purchase-order'}.pdf`);
+      const fileName = `${purchaseNo || 'purchase-order'}.pdf`;
+      if (mode === 'preview') {
+        window.open(doc.output('bloburl'), '_blank');
+      } else {
+        doc.save(fileName);
+      }
     } catch (error) {
       toast.error(error?.message || 'Failed to generate purchase PDF');
     }
@@ -2195,20 +2200,16 @@ const Purchase = () => {
                         <IconButton size="small" title="Edit" onClick={() => editPurchaseBill(row)}>
                           <Edit fontSize="small" />
                         </IconButton>
-                        <IconButton size="small" title="Print PDF" onClick={() => generatePurchasePdf(row)}>
+                        <IconButton size="small" title="Print PDF" onClick={() => generatePurchasePdf(row, 'preview')}>
                           <Print fontSize="small" />
                         </IconButton>
-                        <IconButton size="small" title="Download PDF" onClick={() => generatePurchasePdf(row)}>
+                        <IconButton size="small" title="Download PDF" onClick={() => generatePurchasePdf(row, 'download')}>
                           <Download fontSize="small" />
                         </IconButton>
                         <IconButton
                           size="small"
-                          title="View Details"
-                          onClick={() =>
-                            alert(
-                              `Purchase No: ${row.purchase_no}\nSupplier: ${row.supplier_name}\nDate: ${safeDate(row.purchase_date)}\nTotal: ${money(row.grand_total)}\nPaid: ${money(row.paid_amount)}\nDue: ${money(row.due_amount)}`
-                            )
-                          }
+                          title="View PDF"
+                          onClick={() => generatePurchasePdf(row, 'preview')}
                         >
                           <Visibility fontSize="small" />
                         </IconButton>
