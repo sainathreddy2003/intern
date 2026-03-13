@@ -4,6 +4,30 @@ const Item = require('../models/Item');
 const { getPagination } = require('../utils/pagination');
 const mongoose = require('mongoose');
 const path = require('path');
+const fs = require('fs/promises');
+
+const removeUploadedAttachmentIfExists = async (attachmentPath = '') => {
+  const normalized = String(attachmentPath || '').trim();
+  if (!normalized) return;
+  const absolutePath = path.resolve(__dirname, '../..', normalized);
+  try {
+    await fs.unlink(absolutePath);
+  } catch (error) {
+    if (error?.code !== 'ENOENT') {
+      console.warn(`Failed to remove purchase attachment ${absolutePath}: ${error.message}`);
+    }
+  }
+};
+
+const findPurchaseByIdOrNo = async (identifier = '') => {
+  const value = String(identifier || '').trim();
+  if (!value) return null;
+  if (mongoose.Types.ObjectId.isValid(value)) {
+    const byId = await Purchase.findById(value);
+    if (byId) return byId;
+  }
+  return Purchase.findOne({ purchase_no: value });
+};
 
 const normalizePurchasePayment = (row) => {
   const total = Math.max(0, Number(row.grand_total || 0));
@@ -204,6 +228,10 @@ const listPurchases = async (req, res, next) => {
 const createPurchase = async (req, res, next) => {
   try {
     const payload = { ...(req.body || {}) };
+    const removeAttachmentRequested =
+      String(payload.remove_bill_attachment || '').toLowerCase() === 'true' ||
+      String(payload.remove_bill_attachment || '') === '1';
+    delete payload.remove_bill_attachment;
     if (typeof payload.items === 'string') {
       try {
         payload.items = JSON.parse(payload.items);
@@ -216,11 +244,18 @@ const createPurchase = async (req, res, next) => {
       payload.items = [];
     }
 
+    const previousAttachmentPath = String(existing.bill_attachment || '').trim();
+    let shouldRemovePreviousAttachment = false;
+
     if (req.file?.path) {
       payload.bill_attachment = path
         .relative(path.resolve(__dirname, '../..'), req.file.path)
         .split(path.sep)
         .join('/');
+      shouldRemovePreviousAttachment = Boolean(previousAttachmentPath);
+    } else if (removeAttachmentRequested) {
+      payload.bill_attachment = '';
+      shouldRemovePreviousAttachment = Boolean(previousAttachmentPath);
     }
 
     const now = new Date();
@@ -269,7 +304,7 @@ const listActiveSuppliers = async (req, res, next) => {
 
 const getPurchase = async (req, res, next) => {
   try {
-    const row = await Purchase.findById(req.params.id);
+    const row = await findPurchaseByIdOrNo(req.params.id);
     if (!row) {
       res.status(404);
       throw new Error('Purchase order not found');
@@ -282,13 +317,17 @@ const getPurchase = async (req, res, next) => {
 
 const updatePurchase = async (req, res, next) => {
   try {
-    const existing = await Purchase.findById(req.params.id);
+    const existing = await findPurchaseByIdOrNo(req.params.id);
     if (!existing) {
       res.status(404);
       throw new Error('Purchase order not found');
     }
 
     const payload = { ...(req.body || {}) };
+    const removeAttachmentRequested =
+      String(payload.remove_bill_attachment || '').toLowerCase() === 'true' ||
+      String(payload.remove_bill_attachment || '') === '1';
+    delete payload.remove_bill_attachment;
     if (typeof payload.items === 'string') {
       try {
         payload.items = JSON.parse(payload.items);
@@ -297,11 +336,17 @@ const updatePurchase = async (req, res, next) => {
         throw new Error('Invalid items payload format');
       }
     }
+    const previousAttachmentPath = String(existing.bill_attachment || '').trim();
+    let shouldRemovePreviousAttachment = false;
     if (req.file?.path) {
       payload.bill_attachment = path
         .relative(path.resolve(__dirname, '../..'), req.file.path)
         .split(path.sep)
         .join('/');
+      shouldRemovePreviousAttachment = Boolean(previousAttachmentPath);
+    } else if (removeAttachmentRequested) {
+      payload.bill_attachment = '';
+      shouldRemovePreviousAttachment = Boolean(previousAttachmentPath);
     }
     if (payload.grand_total !== undefined || payload.paid_amount !== undefined) {
       const merged = {
@@ -314,7 +359,7 @@ const updatePurchase = async (req, res, next) => {
       payload.payment_status = merged.payment_status;
     }
 
-    const updated = await Purchase.findByIdAndUpdate(req.params.id, payload, {
+    const updated = await Purchase.findByIdAndUpdate(existing._id, payload, {
       new: true,
       runValidators: true
     });
@@ -335,6 +380,10 @@ const updatePurchase = async (req, res, next) => {
       purchase_date: updated.purchase_date
     });
 
+    if (shouldRemovePreviousAttachment) {
+      await removeUploadedAttachmentIfExists(previousAttachmentPath);
+    }
+
     res.json({ success: true, data: updated });
   } catch (error) {
     next(error);
@@ -348,7 +397,7 @@ const addPurchasePayment = async (req, res, next) => {
       res.status(400);
       throw new Error('Payment amount must be greater than 0');
     }
-    const row = await Purchase.findById(req.params.id);
+    const row = await findPurchaseByIdOrNo(req.params.id);
     if (!row) {
       res.status(404);
       throw new Error('Purchase order not found');
@@ -372,7 +421,12 @@ const addPurchasePayment = async (req, res, next) => {
 
 const deletePurchase = async (req, res, next) => {
   try {
-    const deleted = await Purchase.findByIdAndDelete(req.params.id);
+    const existing = await findPurchaseByIdOrNo(req.params.id);
+    if (!existing) {
+      res.status(404);
+      throw new Error('Purchase order not found');
+    }
+    const deleted = await Purchase.findByIdAndDelete(existing._id);
     if (!deleted) {
       res.status(404);
       throw new Error('Purchase order not found');
@@ -382,7 +436,7 @@ const deletePurchase = async (req, res, next) => {
       purchase_no: deleted.purchase_no,
       purchase_date: deleted.purchase_date
     });
-    res.json({ success: true, message: 'Purchase order deleted', data: { id: req.params.id } });
+    res.json({ success: true, message: 'Purchase order deleted', data: { id: String(existing._id) } });
   } catch (error) {
     next(error);
   }

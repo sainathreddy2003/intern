@@ -334,6 +334,8 @@ const Purchase = () => {
   const [paymentForm, setPaymentForm] = useState(emptyPaymentForm);
   const [returnForm, setReturnForm] = useState(emptyReturnForm);
   const [selectedAttachment, setSelectedAttachment] = useState(null);
+  const [existingAttachmentPath, setExistingAttachmentPath] = useState('');
+  const [removeExistingAttachment, setRemoveExistingAttachment] = useState(false);
   const uploadBaseUrl = useMemo(() => getApiRootUrl(), []);
 
   const { data: suppliersData } = useQuery('suppliers-purchase', purchaseAPI.getSuppliers, {
@@ -502,6 +504,8 @@ const Purchase = () => {
     setEditingHoldId('');
     setEditingHoldNo('');
     setSelectedAttachment(null);
+    setExistingAttachmentPath('');
+    setRemoveExistingAttachment(false);
   }, []);
 
   const createOrderMutation = useMutation((payload) => purchaseAPI.createOrder(payload), {
@@ -699,6 +703,8 @@ const Purchase = () => {
       setEditingHoldId(id);
       setEditingHoldNo(String(order.purchase_no || '').trim());
       setSelectedAttachment(null);
+      setExistingAttachmentPath(String(order.bill_attachment || order.billAttachment || '').trim());
+      setRemoveExistingAttachment(false);
       setActiveTab(0);
       toast.success(`Loaded hold bill ${order.purchase_no || ''}`);
     },
@@ -761,6 +767,10 @@ const Purchase = () => {
       setEditingHoldId(id);
       setEditingHoldNo(String(sourceOrder.purchase_no || '').trim());
       setSelectedAttachment(null);
+      setExistingAttachmentPath(
+        String(sourceOrder.bill_attachment || sourceOrder.billAttachment || '').trim()
+      );
+      setRemoveExistingAttachment(false);
       setActiveTab(0);
       toast.success(`Editing purchase bill ${sourceOrder.purchase_no || ''}`);
     },
@@ -1305,7 +1315,7 @@ const Purchase = () => {
       };
 
       let requestPayload = payload;
-      if (selectedAttachment) {
+      if (selectedAttachment || (editingHoldId && removeExistingAttachment)) {
         const formData = new FormData();
         Object.entries(payload).forEach(([key, value]) => {
           if (value === undefined || value === null) return;
@@ -1315,7 +1325,12 @@ const Purchase = () => {
           }
           formData.append(key, String(value));
         });
-        formData.append('billAttachment', selectedAttachment);
+        if (selectedAttachment) {
+          formData.append('billAttachment', selectedAttachment);
+        }
+        if (editingHoldId && removeExistingAttachment) {
+          formData.append('remove_bill_attachment', 'true');
+        }
         requestPayload = formData;
       }
 
@@ -1334,7 +1349,15 @@ const Purchase = () => {
         createOrderMutation.mutate(requestPayload, mutationOptions);
       }
     },
-    [createOrderMutation, editingHoldId, purchaseForm, rows, selectedAttachment, updateOrderMutation]
+    [
+      createOrderMutation,
+      editingHoldId,
+      purchaseForm,
+      removeExistingAttachment,
+      rows,
+      selectedAttachment,
+      updateOrderMutation,
+    ]
   );
 
   const savePurchaseBill = useCallback(() => {
@@ -1684,38 +1707,81 @@ const Purchase = () => {
               />
             </Grid>
             <Grid item xs={12} md={3}>
-              <Button
-                fullWidth
-                component="label"
-                variant="outlined"
-                size="small"
-                sx={{ height: '100%', textTransform: 'none' }}
-              >
-                {selectedAttachment ? selectedAttachment.name : 'Upload Supplier Bill'}
-                <input
-                  hidden
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0] || null;
-                    if (!file) {
-                      setSelectedAttachment(null);
-                      return;
-                    }
-                    if (!ATTACHMENT_ACCEPTED_TYPES.includes(file.type)) {
-                      toast.error('Only PDF, JPG, JPEG, or PNG files are allowed');
-                      event.target.value = '';
-                      return;
-                    }
-                    if (file.size > MAX_ATTACHMENT_SIZE) {
-                      toast.error('Attachment size must be at most 5MB');
-                      event.target.value = '';
-                      return;
-                    }
-                    setSelectedAttachment(file);
-                  }}
-                />
-              </Button>
+              <Box sx={{ display: 'flex', gap: 1, height: '100%' }}>
+                <Button
+                  fullWidth
+                  component="label"
+                  variant="outlined"
+                  size="small"
+                  sx={{ height: '100%', textTransform: 'none' }}
+                >
+                  {selectedAttachment ? selectedAttachment.name : 'Upload Supplier Bill'}
+                  <input
+                    hidden
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0] || null;
+                      if (!file) {
+                        setSelectedAttachment(null);
+                        return;
+                      }
+                      if (!ATTACHMENT_ACCEPTED_TYPES.includes(file.type)) {
+                        toast.error('Only PDF, JPG, JPEG, or PNG files are allowed');
+                        event.target.value = '';
+                        return;
+                      }
+                      if (file.size > MAX_ATTACHMENT_SIZE) {
+                        toast.error('Attachment size must be at most 5MB');
+                        event.target.value = '';
+                        return;
+                      }
+                      setSelectedAttachment(file);
+                      setRemoveExistingAttachment(false);
+                    }}
+                  />
+                </Button>
+                {selectedAttachment && (
+                  <Button
+                    variant="outlined"
+                    color="warning"
+                    size="small"
+                    onClick={() => setSelectedAttachment(null)}
+                    sx={{ textTransform: 'none', whiteSpace: 'nowrap' }}
+                  >
+                    Clear Upload
+                  </Button>
+                )}
+              </Box>
+              {editingHoldId && existingAttachmentPath && !removeExistingAttachment && !selectedAttachment && (
+                <Box sx={{ mt: 0.5, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  <Button
+                    size="small"
+                    variant="text"
+                    component="a"
+                    href={`${uploadBaseUrl}/${String(existingAttachmentPath).replace(/^\/+/, '')}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    sx={{ textTransform: 'none' }}
+                  >
+                    View Uploaded Bill
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="text"
+                    color="error"
+                    onClick={() => setRemoveExistingAttachment(true)}
+                    sx={{ textTransform: 'none' }}
+                  >
+                    Delete Uploaded Bill
+                  </Button>
+                </Box>
+              )}
+              {editingHoldId && existingAttachmentPath && removeExistingAttachment && !selectedAttachment && (
+                <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
+                  Uploaded bill will be removed when you save/update this purchase.
+                </Typography>
+              )}
             </Grid>
           </Grid>
 
