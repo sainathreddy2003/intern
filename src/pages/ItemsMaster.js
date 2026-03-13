@@ -129,12 +129,6 @@ const ItemsMaster = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  const buildCodeFromBarcode = (barcode = '') => {
-    const clean = String(barcode).replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-    if (!clean) return '';
-    return `FB-${clean.slice(0, 12)}`;
-  };
-
   // Fetch items with stock
   const { data: itemsData, isLoading: itemsLoading } = useQuery(
     ['items-stock', page, rowsPerPage, filters],
@@ -186,7 +180,7 @@ const ItemsMaster = () => {
 
   const filteredInventoryItems = items.filter((item) => {
     const namePass = inventoryFilters.name
-      ? `${item.item_name || ''} ${item.item_code || ''} ${item.barcode || ''}`.toLowerCase().includes(inventoryFilters.name.toLowerCase())
+      ? `${item.item_name || ''} ${item.barcode || ''}`.toLowerCase().includes(inventoryFilters.name.toLowerCase())
       : true;
     const typePass = inventoryFilters.type
       ? (item.fabric_type || '').toLowerCase().includes(inventoryFilters.type.toLowerCase())
@@ -334,7 +328,6 @@ const ItemsMaster = () => {
       setNewItem((prev) => ({
         ...prev,
         barcode,
-        item_code: buildCodeFromBarcode(barcode),
       }));
       return;
     }
@@ -405,7 +398,6 @@ const ItemsMaster = () => {
 
     const payload = {
       ...newItem,
-      item_code: buildCodeFromBarcode(newItem.barcode),
       group: newItem.group_id || 'General',
       group_id: newItem.group_id || '',
       item_type: newItem.item_type || 'GENERAL',
@@ -486,18 +478,15 @@ const ItemsMaster = () => {
 
     const itemId = String(item.item_id || '').trim();
     const barcode = String(item.barcode || '').trim().toLowerCase();
-    const code = String(item.item_code || '').trim().toLowerCase();
 
     const matchedOrder = orders.find((order) =>
       Array.isArray(order.items) &&
       order.items.some((line) => {
         const lineItemId = String(line.itemId || line.item_id || '').trim();
         const lineBarcode = String(line.barcode || '').trim().toLowerCase();
-        const lineCode = String(line.code || '').trim().toLowerCase();
         return (
           (itemId && lineItemId && lineItemId === itemId) ||
-          (barcode && lineBarcode && lineBarcode === barcode) ||
-          (code && lineCode && lineCode === code)
+          (barcode && lineBarcode && lineBarcode === barcode)
         );
       })
     );
@@ -512,7 +501,6 @@ const ItemsMaster = () => {
         const prefillItem = {
           item_id: String(item.item_id || '').trim(),
           barcode: String(item.barcode || '').trim(),
-          item_code: String(item.item_code || '').trim(),
           item_name: String(item.item_name || '').trim(),
           piece_meter: String(item.unit_name || item.piece_meter || '1').trim(),
         };
@@ -544,7 +532,6 @@ const ItemsMaster = () => {
 
     const payload = {
       ...newItem,
-      item_code: buildCodeFromBarcode(newItem.barcode),
       group: newItem.group_id || 'General',
       group_id: newItem.group_id || '',
       item_type: newItem.item_type || 'GENERAL',
@@ -662,7 +649,6 @@ const ItemsMaster = () => {
                     <TableCell sx={{ py: 1.5, fontWeight: 500, color: '#333', fontSize: '0.8125rem' }}>{item.barcode || '-'}</TableCell>
                     <TableCell sx={{ py: 1.5 }}>
                       <Typography variant="body2" fontWeight={600} color="text.primary">{item.item_name}</Typography>
-                      <Typography variant="caption" sx={{ color: '#9e9e9e', letterSpacing: '0.3px' }}>{item.item_code}</Typography>
                     </TableCell>
                     <TableCell sx={{ py: 1.5 }}>
                       <Chip label={item.item_type === 'FABRIC' || item.fabric_type ? 'FABRICS' : (item.group_name || item.group || item.item_type || '-')} size="small" sx={{ fontSize: '0.7rem', height: 20, bgcolor: '#e3f2fd', color: '#1976d2', fontWeight: 600 }} />
@@ -747,9 +733,6 @@ const ItemsMaster = () => {
                     <TableCell>
                       <Typography variant="body2" fontWeight="medium">
                         {item.item_name}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {item.item_code}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -837,13 +820,10 @@ const ItemsMaster = () => {
                   return (
                     <TableRow key={item.batch_id} hover>
                       <TableCell>
-                        <Typography variant="body2" fontWeight="medium">
-                          {item.item_name}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {item.item_code}
-                        </Typography>
-                      </TableCell>
+                      <Typography variant="body2" fontWeight="medium">
+                        {item.item_name}
+                      </Typography>
+                    </TableCell>
                       <TableCell>
                         <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
                           {item.batch_number}
@@ -1239,7 +1219,6 @@ const ItemsMaster = () => {
                   openQuantityEditInPurchase({
                     item_id: editingItemId,
                     barcode: newItem.barcode,
-                    item_code: newItem.item_code,
                     item_name: newItem.item_name,
                     last_purchase_id: newItem.last_purchase_id,
                   })

@@ -488,19 +488,16 @@ const POS = () => {
     const upper = barcode.toUpperCase();
     const exactLocal = catalogItems.find((x) => {
       const itemBarcode = String(x.barcode || '').trim().toUpperCase();
-      const itemCode = String(x.code || '').trim().toUpperCase();
       const itemName = String(x.name || x.item_name || '').trim().toUpperCase();
-      return itemBarcode === upper || itemCode === upper || itemName === upper;
+      return itemBarcode === upper || itemName === upper;
     });
     if (exactLocal) return exactLocal;
 
     const startsWithLocal = catalogItems.find((x) => {
       const itemBarcode = String(x.barcode || '').trim().toUpperCase();
-      const itemCode = String(x.code || '').trim().toUpperCase();
       const itemName = String(x.name || x.item_name || '').trim().toUpperCase();
       return (
         itemBarcode.startsWith(upper) ||
-        itemCode.startsWith(upper) ||
         itemName.startsWith(upper)
       );
     });
@@ -543,15 +540,13 @@ const POS = () => {
       return;
     }
 
-    // Search for variants by barcode/code/name
+    // Search for variants by barcode/name
     const variants = catalogItems.filter((x) => {
       const itemBarcode = String(x.barcode || '').trim().toUpperCase();
-      const itemCode = String(x.code || '').trim().toUpperCase();
       const itemName = String(x.name || x.item_name || '').trim().toUpperCase();
       const searchBarcode = barcode.toUpperCase();
       return (
         itemBarcode.startsWith(searchBarcode) ||
-        itemCode.startsWith(searchBarcode) ||
         itemName.startsWith(searchBarcode) ||
         itemName.includes(searchBarcode)
       );
@@ -572,12 +567,10 @@ const POS = () => {
         const searchResults = Array.isArray(searchResponse?.data) ? searchResponse.data : [];
         const backendVariants = searchResults.filter((item) => {
           const itemBarcode = String(item.barcode || '').trim().toUpperCase();
-          const itemCode = String(item.item_code || '').trim().toUpperCase();
           const itemName = String(item.item_name || '').trim().toUpperCase();
           const searchBarcode = barcode.toUpperCase();
           return (
             itemBarcode.startsWith(searchBarcode) ||
-            itemCode.startsWith(searchBarcode) ||
             itemName.startsWith(searchBarcode) ||
             itemName.includes(searchBarcode)
           );
@@ -616,7 +609,7 @@ const POS = () => {
     }
 
     setFabricEntry({
-      barcode: item.barcode || item.code,
+      barcode: item.barcode || '',
       item_name: item.name,
       meters: detectedMeter,
       qty: '1',
@@ -635,10 +628,9 @@ const POS = () => {
 
     const matchedFromOptions = barcodeOptions.find((x) => {
       const itemBarcode = String(x.barcode || '').trim().toUpperCase();
-      const itemCode = String(x.code || '').trim().toUpperCase();
       const itemName = String(x.name || x.item_name || '').trim().toUpperCase();
       const input = barcode.toUpperCase();
-      return itemBarcode === input || itemCode === input || itemName === input;
+      return itemBarcode === input || itemName === input;
     }) || barcodeOptions[0];
 
     if (matchedFromOptions) {
@@ -696,8 +688,7 @@ const POS = () => {
     const itemName = fabricEntry.item_name.trim();
     const mappedByBarcode = catalogItems.find(
       (x) =>
-        String(x.barcode || '').trim() === barcode ||
-        String(x.code || '').trim() === barcode
+        String(x.barcode || '').trim() === barcode
     );
     const resolvedItemName = itemName || mappedByBarcode?.name || '';
 
@@ -1729,12 +1720,12 @@ const POS = () => {
               getOptionLabel={(option) =>
                 typeof option === 'string'
                   ? option
-                  : `${option.barcode || option.code || ''} - ${option.name || ''}`
+                  : `${option.barcode || ''} - ${option.name || ''}`
               }
               renderOption={(props, option) => (
                 <Box component="li" {...props}>
                   <Box>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{option.barcode || option.code}</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{option.barcode}</Typography>
                     <Typography variant="caption" color="text.secondary">{option.name}</Typography>
                   </Box>
                 </Box>
@@ -1752,7 +1743,7 @@ const POS = () => {
                 <TextField
                   {...params}
                   size="small"
-                  label="Barcode / Code / Name"
+                  label="Barcode / Name"
                   inputRef={barcodeInputRef}
                   onKeyDown={async (e) => {
                     if (e.key === 'Enter') {

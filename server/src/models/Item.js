@@ -3,13 +3,6 @@ const createTenantModel = require('./createTenantModel');
 
 const itemSchema = new mongoose.Schema(
   {
-    item_code: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-      uppercase: true
-    },
     item_name: {
       type: String,
       required: true,
@@ -198,6 +191,6 @@ const itemSchema = new mongoose.Schema(
   }
 );
 
-itemSchema.index({ item_name: 'text', item_code: 'text', barcode: 'text', group: 'text' });
+itemSchema.index({ item_name: 'text', barcode: 'text', group: 'text' });
 
 module.exports = createTenantModel('Item', itemSchema);

@@ -3,22 +3,6 @@ const { getPagination } = require('../utils/pagination');
 
 const normalizeBarcode = (value = '') => String(value || '').trim();
 
-const buildItemCodeFromBarcode = (barcode = '') => {
-  const clean = String(barcode).replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-  return clean ? `FB-${clean.slice(0, 12)}` : '';
-};
-
-const resolveUniqueItemCode = async (preferredCode = '') => {
-  const base = String(preferredCode || '').trim().toUpperCase() || `FB-${Date.now().toString().slice(-8)}`;
-  let candidate = base;
-  let suffix = 1;
-  while (await Item.exists({ item_code: candidate })) {
-    candidate = `${base}-${suffix}`;
-    suffix += 1;
-  }
-  return candidate;
-};
-
 const resolveUnitByItemType = (itemType = '') => {
   const normalizedType = String(itemType || '').trim().toUpperCase();
   if (normalizedType === 'FABRIC') return { unit: 'MTR', unit_name: 'Meter' };
@@ -86,7 +70,6 @@ const mapItemToClient = (itemDoc) => {
 const mapPayloadToDb = (payload = {}) => ({
   ...payload,
   barcode: normalizeBarcode(payload.barcode),
-  item_code: (payload.item_code || buildItemCodeFromBarcode(payload.barcode || '')).trim().toUpperCase(),
   group_id: payload.group_id ?? payload.group ?? '',
   group: payload.group ?? payload.group_name ?? payload.group_id ?? payload.group ?? 'General',
   item_type: String(payload.item_type || 'GENERAL').toUpperCase(),
@@ -148,7 +131,7 @@ const searchItems = async (req, res, next) => {
 
     const regex = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
     const data = await Item.find({
-      $or: [{ item_name: regex }, { item_code: regex }, { barcode: regex }, { group: regex }]
+      $or: [{ item_name: regex }, { barcode: regex }, { group: regex }]
     })
       .sort({ item_name: 1 })
       .limit(20);
@@ -186,7 +169,7 @@ const listItems = async (req, res, next) => {
 
     if (q) {
       const regex = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-      filter.$or = [{ item_name: regex }, { item_code: regex }, { barcode: regex }, { group: regex }];
+      filter.$or = [{ item_name: regex }, { barcode: regex }, { group: regex }];
     }
 
     if (itemType) {
@@ -242,9 +225,7 @@ const createItem = async (req, res, next) => {
       throw new Error('Barcode already exists');
     }
 
-    const preferredCode = req.body?.item_code || buildItemCodeFromBarcode(barcode);
-    const uniqueCode = await resolveUniqueItemCode(preferredCode);
-    const data = await Item.create(mapPayloadToDb({ ...req.body, barcode, item_name: itemName, item_code: uniqueCode }));
+    const data = await Item.create(mapPayloadToDb({ ...req.body, barcode, item_name: itemName }));
     res.status(201).json({ success: true, data: mapItemToClient(data) });
   } catch (error) {
     if (error?.code === 11000) {
@@ -276,19 +257,13 @@ const updateItem = async (req, res, next) => {
       throw new Error('Barcode already exists');
     }
 
-    const existingItem = await Item.findById(req.params.id).select('item_code');
+    const existingItem = await Item.findById(req.params.id).select('_id');
     if (!existingItem) {
       res.status(404);
       throw new Error('Item not found');
     }
-    const preferredCode = req.body?.item_code || buildItemCodeFromBarcode(barcode);
-    const itemCodeInUseByOther = await Item.exists({
-      item_code: String(preferredCode).trim().toUpperCase(),
-      _id: { $ne: req.params.id }
-    });
-    const finalCode = itemCodeInUseByOther ? await resolveUniqueItemCode(preferredCode) : preferredCode;
 
-    const data = await Item.findByIdAndUpdate(req.params.id, mapPayloadToDb({ ...req.body, item_code: finalCode }), {
+    const data = await Item.findByIdAndUpdate(req.params.id, mapPayloadToDb(req.body), {
       new: true,
       runValidators: true
     });
