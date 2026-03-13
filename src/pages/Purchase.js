@@ -306,6 +306,15 @@ const Purchase = () => {
     fromDate: '',
     toDate: '',
   });
+  const resetFilters = useCallback(() => {
+    setFilters({
+      search: '',
+      supplierId: '',
+      paymentStatus: '',
+      fromDate: '',
+      toDate: '',
+    });
+  }, []);
   const [purchaseForm, setPurchaseForm] = useState(emptyPurchaseForm);
   const [rows, setRows] = useState([createEmptyRow()]);
   const [editingHoldId, setEditingHoldId] = useState('');
@@ -2446,12 +2455,3 @@ const Purchase = () => {
 };
 
 export default Purchase;
-  const resetFilters = useCallback(() => {
-    setFilters({
-      search: '',
-      supplierId: '',
-      paymentStatus: '',
-      fromDate: '',
-      toDate: '',
-    });
-  }, []);

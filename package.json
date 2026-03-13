@@ -4,6 +4,7 @@
   "description": "Retail ERP Client - React/Electron with offline capabilities",
   "main": "public/electron.js",
   "homepage": "./",
+  "proxy": "http://localhost:5000",
   "scripts": {
     "start": "concurrently \"npm run server\" \"npm run client\"",
     "client": "react-scripts start",

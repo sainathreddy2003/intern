@@ -69,28 +69,7 @@
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     
-    <!-- Loading Screen -->
-    <div id="loading-screen" class="loading-container">
-      <div class="loading-content">
-        <div class="loading-spinner"></div>
-        <div class="loading-text">Loading Retail ERP...</div>
-      </div>
-    </div>
-    
     <!-- React App Root -->
-    <div id="root" style="display: none;"></div>
-    
-    <script>
-      // Hide loading screen and show app when DOM is ready
-      window.addEventListener('DOMContentLoaded', () => {
-        setTimeout(() => {
-          const loadingScreen = document.getElementById('loading-screen');
-          const root = document.getElementById('root');
-          
-          if (loadingScreen) loadingScreen.style.display = 'none';
-          if (root) root.style.display = 'block';
-        }, 1000);
-      });
-    </script>
+    <div id="root"></div>
   </body>
 </html>

@@ -10,9 +10,14 @@ const isLocalHost =
     window.location.hostname === '127.0.0.1' ||
     window.location.hostname === '::1');
 
-const API_BASE_URL = normalizeBaseUrl(
-  process.env.REACT_APP_API_URL || (isLocalHost ? 'http://localhost:5002/api' : '/api')
-);
+const configuredApiUrl = normalizeBaseUrl(process.env.REACT_APP_API_URL);
+const API_BASE_URL = (() => {
+  // Local development safety: if env is "/api", call backend port directly.
+  if (isLocalHost && (!configuredApiUrl || configuredApiUrl === '/api')) {
+    return 'http://localhost:5000/api';
+  }
+  return configuredApiUrl || '/api';
+})();
 
 // Create axios instance
 const api = axios.create({

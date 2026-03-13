@@ -6,6 +6,7 @@ import { ReactQueryDevtools } from 'react-query/devtools';
 import { Toaster } from 'react-hot-toast';
 
 import App from './App';
+import AppErrorBoundary from './components/AppErrorBoundary';
 import { AuthProvider } from './contexts/AuthContext';
 import { OfflineProvider } from './contexts/OfflineContext_simple';
 import './index.css';
@@ -26,39 +27,41 @@ const root = ReactDOM.createRoot(document.getElementById('root'));
 
 root.render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AuthProvider>
-          <OfflineProvider>
-            <App />
-            <Toaster
-              position="top-right"
-              toastOptions={{
-                duration: 4000,
-                style: {
-                  background: '#363636',
-                  color: '#fff',
-                },
-                success: {
-                  duration: 3000,
-                  iconTheme: {
-                    primary: '#4caf50',
-                    secondary: '#fff',
+    <AppErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <AuthProvider>
+            <OfflineProvider>
+              <App />
+              <Toaster
+                position="top-right"
+                toastOptions={{
+                  duration: 4000,
+                  style: {
+                    background: '#363636',
+                    color: '#fff',
                   },
-                },
-                error: {
-                  duration: 5000,
-                  iconTheme: {
-                    primary: '#f44336',
-                    secondary: '#fff',
+                  success: {
+                    duration: 3000,
+                    iconTheme: {
+                      primary: '#4caf50',
+                      secondary: '#fff',
+                    },
                   },
-                },
-              }}
-            />
-          </OfflineProvider>
-        </AuthProvider>
-        {process.env.NODE_ENV === 'development' && <ReactQueryDevtools />}
-      </BrowserRouter>
-    </QueryClientProvider>
+                  error: {
+                    duration: 5000,
+                    iconTheme: {
+                      primary: '#f44336',
+                      secondary: '#fff',
+                    },
+                  },
+                }}
+              />
+            </OfflineProvider>
+          </AuthProvider>
+          {process.env.NODE_ENV === 'development' && <ReactQueryDevtools />}
+        </BrowserRouter>
+      </QueryClientProvider>
+    </AppErrorBoundary>
   </React.StrictMode>
 );
